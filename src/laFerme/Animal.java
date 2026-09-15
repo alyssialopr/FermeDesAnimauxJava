@@ -7,4 +7,6 @@ public interface Animal {
     void allerEnBalade();
     void vendre();
     void soigner();
+    EtatAnimal getEtat();
+    void setEnclos(String enclos);
 }
