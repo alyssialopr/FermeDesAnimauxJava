@@ -9,6 +9,8 @@ import org.springframework.data.jpa.domain.Specification;
 
 /**
  * Criteres de recherche combinables pour la liste des animaux.
+ * Un critere absent renvoie une specification sans restriction, ce qui permet de tous
+ * les combiner avec {@link Specification#allOf} sans tests conditionnels ailleurs.
  */
 public final class AnimalSpecifications {
 
@@ -17,7 +19,7 @@ public final class AnimalSpecifications {
 
     public static Specification<Animal> espece(Espece espece) {
         if (espece == null) {
-            return null;
+            return Specification.unrestricted();
         }
         Class<? extends Animal> type = switch (espece) {
             case VACHE -> Vache.class;
@@ -28,21 +30,21 @@ public final class AnimalSpecifications {
 
     public static Specification<Animal> etat(EtatAnimal etat) {
         if (etat == null) {
-            return null;
+            return Specification.unrestricted();
         }
         return (racine, requete, cb) -> cb.equal(racine.get("etat"), etat);
     }
 
     public static Specification<Animal> eleveur(Long eleveurId) {
         if (eleveurId == null) {
-            return null;
+            return Specification.unrestricted();
         }
         return (racine, requete, cb) -> cb.equal(racine.get("eleveur").get("id"), eleveurId);
     }
 
     public static Specification<Animal> enclos(String enclos) {
         if (enclos == null || enclos.isBlank()) {
-            return null;
+            return Specification.unrestricted();
         }
         return (racine, requete, cb) -> cb.equal(racine.get("enclos"), enclos);
     }
