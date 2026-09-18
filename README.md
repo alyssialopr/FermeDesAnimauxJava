@@ -38,6 +38,18 @@ export SPRING_DATASOURCE_PASSWORD=...        # même valeur que dans .env
 ./mvnw spring-boot:run
 ```
 
+## Documentation de l'API (Swagger)
+
+La documentation est générée à partir du code (springdoc-openapi) et se consulte
+sur **http://localhost:8080/swagger-ui.html** — le contrat brut est sur
+`/v3/api-docs`.
+
+Elle est complète : chaque opération porte un résumé et une description, chaque
+champ des requêtes et des réponses est décrit avec un exemple, les énumérations
+(`Espece`, `EtatAnimal`) expliquent leurs valeurs, et les codes d'erreur `400`,
+`404`, `409` sont documentés avec un exemple de corps `application/problem+json`.
+Le bouton *Try it out* permet d'appeler l'API directement depuis la page.
+
 ## Tests
 
 ```bash

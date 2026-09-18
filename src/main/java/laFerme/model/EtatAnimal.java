@@ -1,5 +1,11 @@
 package laFerme.model;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(name = "EtatAnimal", description = """
+        Etat de l'animal. `LIBRE` : present a la ferme, toutes les actions sont possibles. \
+        `VENDU` : sorti du troupeau apres une vente. `MORT` et `DISPARU` : sorties definitives \
+        declarees par la ferme. Hors `LIBRE`, aucune action n'est acceptee.""")
 public enum EtatAnimal {
     LIBRE, VENDU, MORT, DISPARU;
 
