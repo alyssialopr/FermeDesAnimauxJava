@@ -50,10 +50,15 @@ async function requete(chemin, options = {}) {
 }
 
 export const api = {
+  // --- catalogue ----------------------------------------------------------
+  listerEspeces: () => requete('/especes'),
+
   // --- eleveurs -----------------------------------------------------------
   listerEleveurs: () => requete('/eleveurs'),
   eleveur: (id) => requete(`/eleveurs/${id}`),
   creerEleveur: (prenom) => requete('/eleveurs', { methode: 'POST', corps: { prenom } }),
+  classement: () => requete('/eleveurs/classement'),
+  mouvements: (eleveurId) => requete(`/eleveurs/${eleveurId}/mouvements`),
 
   // --- animaux ------------------------------------------------------------
   listerAnimaux: () => requete('/animaux'),

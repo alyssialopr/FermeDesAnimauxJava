@@ -1,7 +1,8 @@
 # La Ferme des Animaux
 
-Un petit jeu de gestion de ferme : des **éleveurs** achètent, vendent, nourrissent,
-soignent et promènent des **vaches** et des **poules**.
+Un jeu de gestion de ferme : des **éleveurs** achètent, vendent, nourrissent,
+soignent, promènent et récoltent **neuf espèces** d'animaux, avec de l'argent,
+de la faim, de la santé et un relevé de compte.
 
 Le projet est né comme un exercice Java en console (`Main.java` + package `laFerme`).
 Il est devenu une **API Spring Boot** persistée dans **PostgreSQL**, avec un **front
@@ -53,20 +54,46 @@ export SPRING_DATASOURCE_PASSWORD=...        # même valeur que dans .env
 
 Ouvre **http://localhost:3000** : la ferme se charge en 3D.
 
-- **Choisis ton éleveur** en haut à gauche (ou crées-en un).
-- **Clique sur un animal** pour ouvrir sa fiche : nourrir, soigner, promener,
-  récolter, vendre. Chaque bouton appelle l'API et affiche le message renvoyé.
-- Les animaux **sans propriétaire attendent au marché**, au fond : achète-les pour
-  les faire entrer dans ton troupeau, ils rejoignent alors ton enclos.
+- **Choisis ton éleveur** en haut à gauche (ou crées-en un). Tu démarres avec **300 €**.
+- Onglet **Marché** : les animaux sans propriétaire attendent au fond de la prairie.
+  Achète-les, ils rejoignent ton enclos.
+- **Clique sur un animal** pour ouvrir sa fiche : jauges de faim et de santé,
+  valeur, production, et les six actions avec leur prix affiché.
+- **Récolter** vend la production et remplit la caisse — mais l'animal se fatigue
+  et il faut attendre avant la récolte suivante.
+- Un animal **affamé** ou **épuisé** refuse de produire : nourris-le (le fourrage
+  se paie) ou appelle le vétérinaire.
 - Tu ne peux agir que sur **tes** animaux : sinon l'API répond *Cet animal ne vous
   appartient pas* et le refus s'affiche en rouge dans le journal.
-- **Récolter** remplit les compteurs de lait et d'œufs en haut à droite.
+- Onglet **Compte** : le classement des fortunes et ton relevé de compte, ligne
+  par ligne.
 - **Clic-glisser** pour tourner autour de la ferme, molette pour zoomer, `Échap`
   pour désélectionner.
 
 Rien n'est simulé côté navigateur : chaque action est un appel HTTP à l'API, donc
 une écriture en base. Recharge la page (ou ouvre un second onglet avec un autre
-éleveur), la ferme est exactement dans l'état où tu l'as laissée.
+éleveur), ta ferme, ton argent et ton relevé sont exactement dans l'état où tu les
+as laissés.
+
+### Les espèces
+
+La ferme tourne sur une **horloge accélérée** : les délais se comptent en minutes,
+pour qu'une partie tienne en quelques minutes. `GET /api/especes` expose le tableau
+complet ; en résumé :
+
+| Espèce | Prix | Production | Par récolte | Délai |
+|---|---|---|---|---|
+| 🐔 Poule | 26 € | œufs | 5 × 0,60 € | 2 min |
+| 🦆 Canard | 28 € | œufs | 4 × 0,75 € | 2 min |
+| 🐐 Chèvre | 60 € | lait | 4 × 1,80 € | 3 min |
+| 🐇 Lapin | 70 € | lapereaux | 2 × 12 € | 6 min |
+| 🐖 Cochon | 110 € | — | s'engraisse : +9 € de valeur par repas | — |
+| 🐑 Mouton | 120 € | laine | 3 × 6 € | 6 min |
+| 🦢 Oie | 120 € | duvet | 120 × 0,15 € | 6 min |
+| 🐄 Vache | 230 € | lait | 18 × 1,50 € | 3 min |
+| 🐴 Cheval | 500 € | — | ses promenades rapportent 45 € | 3 min |
+
+Revendre un animal rapporte **90 %** de sa valeur.
 
 ### Développer le front seul
 
@@ -230,6 +257,18 @@ front/                         le jeu (Three.js + Vite, servi par nginx)
 - les états `LIBRE`, `VENDU`, `MORT`, `DISPARU`
 - la vérification « **Cet animal ne vous appartient pas** » avant toute action de l'éleveur
 - le jeu de données du `Main` (emily, marguerite, nugget, plume, alyssia, killian)
+
+### Les règles du jeu
+
+- chaque éleveur a un **porte-monnaie** persisté ; acheter débite, vendre crédite
+- **nourrir** coûte le fourrage, **soigner** coûte le vétérinaire, **récolter**
+  vend la production au prix du marché
+- la **faim** monte toute seule avec le temps, déduite du dernier repas
+- la **santé** baisse à chaque récolte ; les soins et les balades la remontent
+- un animal affamé (> 70 %) ou épuisé (< 30 %) refuse de produire
+- un **délai** sépare deux récoltes : l'argent ne tombe pas du ciel
+- une opération qui dépasse la caisse échoue **en bloc** (409, transaction annulée)
+- chaque mouvement d'argent laisse une ligne dans le **relevé de compte**
 
 ### Ce qui a été amélioré
 

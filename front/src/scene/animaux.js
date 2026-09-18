@@ -5,14 +5,23 @@
 
 import * as THREE from 'three';
 import {
+  creerAlerte,
   creerAnneauSelection,
   creerBulle,
   creerEtiquette,
-  creerPoule,
-  creerVache,
+  creerModele,
 } from './modeles.js';
 
-const VITESSE = { VACHE: 1.5, POULE: 2.6 };
+/** Les petites betes trottinent, les grosses avancent posement. */
+const VITESSE = {
+  VACHE: 1.5, CHEVRE: 2.2, MOUTON: 1.8, COCHON: 1.8, CHEVAL: 2.6,
+  LAPIN: 3.2, POULE: 2.6, CANARD: 2.2, OIE: 2,
+};
+
+/** Ce qui sort de l'animal quand on le recolte. */
+const EMOJI_PRODUCTION = {
+  LAIT: '🥛', OEUFS: '🥚', LAINE: '🧶', DUVET: '🪶', LAPEREAUX: '🐇', AUCUNE: '✨',
+};
 const PAUSE_MIN = 1.5;
 const PAUSE_MAX = 5;
 
@@ -21,7 +30,7 @@ export class AnimalVisuel {
     this.donnees = donnees;
     this.id = donnees.id;
 
-    const modele = donnees.espece === 'VACHE' ? creerVache(donnees.couleur) : creerPoule(donnees.couleur);
+    const modele = creerModele(donnees.espece, donnees.couleur);
     this.corps = modele.groupe;
     this.tete = modele.tete;
     this.pattes = modele.pattes;
@@ -37,6 +46,13 @@ export class AnimalVisuel {
 
     this.etiquette = null;
     this.majEtiquette();
+
+    // Icone d'alerte : l'animal reclame a manger ou le veterinaire.
+    this.alerte = creerAlerte();
+    this.alerte.scale.setScalar(0.95);
+    this.alerte.position.y = this.hauteur + 1.7;
+    this.groupe.add(this.alerte);
+    this.majAlerte();
 
     // Chaque maillage porte l'identifiant : le raycast retrouve l'animal cliquable.
     this.groupe.traverse((objet) => {
@@ -90,6 +106,27 @@ export class AnimalVisuel {
     if (changement) {
       this.majEtiquette();
     }
+    this.majAlerte();
+  }
+
+  /** Affiche une gamelle si l'animal a faim, une tete malade s'il est mal en point. */
+  majAlerte() {
+    const { faim = 0, sante = 100, eleveurId } = this.donnees;
+    // Les animaux du marche n'ont personne a alerter.
+    const besoin = eleveurId == null ? null : sante < 30 ? '🤒' : faim > 70 ? '🍽️' : null;
+
+    this.alerte.visible = besoin !== null;
+    if (besoin && besoin !== this.alerteAffichee) {
+      this.alerteAffichee = besoin;
+      this.groupe.remove(this.alerte);
+      this.alerte.material.map.dispose();
+      this.alerte.material.dispose();
+      this.alerte = creerBulle(besoin);
+      this.alerte.scale.setScalar(0.95);
+      this.alerte.position.y = this.hauteur + 1.7;
+      this.alerte.userData.animalId = this.donnees.id;
+      this.groupe.add(this.alerte);
+    }
   }
 
   majEtiquette() {
@@ -130,7 +167,8 @@ export class AnimalVisuel {
         break;
       case 'recolte':
         this.effet = { type: 'pulser', reste: 1.2 };
-        this.ajouterBulle(this.donnees.espece === 'VACHE' ? '🥛' : '🥚');
+        this.ajouterBulle(EMOJI_PRODUCTION[this.donnees.production] ?? '✨', -0.6);
+        this.ajouterBulle('💶', 0.6);
         break;
       case 'achat':
         this.effet = { type: 'pulser', reste: 1.2 };
@@ -145,9 +183,9 @@ export class AnimalVisuel {
     }
   }
 
-  ajouterBulle(emoji) {
+  ajouterBulle(emoji, decalage = 0) {
     const bulle = creerBulle(emoji);
-    bulle.position.set(0, this.hauteur + 0.4, 0);
+    bulle.position.set(decalage, this.hauteur + 0.4, 0);
     this.groupe.add(bulle);
     this.bulles.push({ sprite: bulle, vie: 0 });
   }
@@ -167,6 +205,9 @@ export class AnimalVisuel {
   }
 
   animerBulles(delta) {
+    if (this.alerte?.visible) {
+      this.alerte.position.y = this.hauteur + 1.7 + Math.sin(this.phase + performance.now() / 500) * 0.1;
+    }
     for (let i = this.bulles.length - 1; i >= 0; i -= 1) {
       const bulle = this.bulles[i];
       bulle.vie += delta;

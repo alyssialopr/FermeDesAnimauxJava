@@ -205,9 +205,8 @@ public abstract class Animal {
 
     public void acheter() {
         this.etat = EtatAnimal.LIBRE;
-        if (derniereNourriture == null) {
-            derniereNourriture = Instant.now();
-        }
+        // Le vendeur le nourrit avant de le livrer : on n'achete pas un animal affame.
+        this.derniereNourriture = Instant.now();
     }
 
     public String vendre() {

@@ -1,9 +1,9 @@
 /**
  * Point d'entree du jeu : relie l'API de la ferme a la scene Three.js.
  *
- * Aucune donnee de jeu n'est inventee cote navigateur — les animaux, les eleveurs
- * et le resultat des actions viennent tous de l'API et donc de PostgreSQL. Seuls
- * les compteurs de recolte sont gardes en local, l'API ne les stocke pas.
+ * Aucune donnee de jeu n'est inventee cote navigateur — les animaux, les eleveurs,
+ * l'argent et le resultat des actions viennent tous de l'API, donc de PostgreSQL.
+ * Le navigateur ne garde que l'eleveur choisi.
  */
 
 import * as THREE from 'three';
@@ -19,11 +19,10 @@ import {
   TAILLE_ENCLOS,
   positionEnclos,
 } from './scene/monde.js';
-import { Hud } from './ui/hud.js';
+import { eurosSigne, Hud } from './ui/hud.js';
 
 const CLE_ELEVEUR = 'ferme.eleveur';
-const CLE_RECOLTES = 'ferme.recoltes';
-const PERIODE_RAFRAICHISSEMENT = 10_000;
+const PERIODE_RAFRAICHISSEMENT = 5_000;
 
 const monde = creerMonde(document.getElementById('scene'));
 const hud = new Hud();
@@ -36,7 +35,6 @@ const etat = {
   eleveurs: [],
   animaux: [],
   selection: null,
-  recoltes: chargerRecoltes(),
 };
 
 const visuels = new Map();
@@ -51,33 +49,11 @@ monde.controles.addEventListener('start', () => {
 /** Recentrage progressif sur l'animal selectionne. */
 let focus = null;
 
-// ---------------------------------------------------------------- persistance
-
-function chargerRecoltes() {
-  try {
-    return JSON.parse(localStorage.getItem(CLE_RECOLTES)) ?? {};
-  } catch {
-    return {};
-  }
-}
-
-function recoltesDeLEleveur() {
-  const cle = String(etat.eleveurId ?? 'aucun');
-  etat.recoltes[cle] ??= { lait: 0, oeufs: 0 };
-  return etat.recoltes[cle];
-}
-
-function enregistrerRecolte(animal) {
-  const compteur = recoltesDeLEleveur();
-  if (animal.espece === 'VACHE') {
-    compteur.lait += animal.litresDeLaitParJour ?? 0;
-  } else {
-    compteur.oeufs += animal.oeufsParSemaine ?? 0;
-  }
-  localStorage.setItem(CLE_RECOLTES, JSON.stringify(etat.recoltes));
-}
-
 // -------------------------------------------------------------------- donnees
+
+function eleveurCourant() {
+  return etat.eleveurs.find((eleveur) => eleveur.id === etat.eleveurId) ?? null;
+}
 
 async function rafraichir({ silencieux = true } = {}) {
   try {
@@ -86,14 +62,15 @@ async function rafraichir({ silencieux = true } = {}) {
     etat.eleveurs = eleveurs;
 
     if (etat.eleveurId && !eleveurs.some((eleveur) => eleveur.id === etat.eleveurId)) {
-      etat.eleveurId = null;
-      localStorage.removeItem(CLE_ELEVEUR);
+      changerEleveur(null);
     }
 
     hud.majEleveurs(eleveurs, etat.eleveurId);
     synchroniserScene();
     majCompteurs();
     majFiche();
+    majMarche();
+    await majCompte();
     return true;
   } catch (erreur) {
     if (!silencieux) {
@@ -104,11 +81,14 @@ async function rafraichir({ silencieux = true } = {}) {
 }
 
 function majCompteurs() {
-  const compteur = recoltesDeLEleveur();
-  const troupeau = etat.animaux.filter(
-    (animal) => animal.eleveurId === etat.eleveurId && animal.etat === 'LIBRE',
-  ).length;
-  hud.majCompteurs({ troupeau, lait: compteur.lait, oeufs: compteur.oeufs });
+  const eleveur = eleveurCourant();
+  hud.majCompteurs({
+    solde: eleveur?.solde ?? null,
+    fortune: eleveur?.fortune ?? null,
+    troupeau: etat.animaux.filter(
+      (animal) => animal.eleveurId === etat.eleveurId && animal.etat === 'LIBRE',
+    ).length,
+  });
 }
 
 function majFiche() {
@@ -122,6 +102,23 @@ function majFiche() {
     return;
   }
   hud.afficherFiche(animal, { eleveurId: etat.eleveurId });
+}
+
+function majMarche() {
+  const aVendre = etat.animaux
+    .filter((animal) => animal.eleveurId == null && animal.etat === 'LIBRE')
+    .sort((a, b) => Number(a.prix) - Number(b.prix));
+
+  hud.majMarche(aVendre, { solde: eleveurCourant()?.solde, eleveurId: etat.eleveurId });
+}
+
+async function majCompte() {
+  try {
+    hud.majClassement(await api.classement(), etat.eleveurId);
+    hud.majMouvements(etat.eleveurId ? await api.mouvements(etat.eleveurId) : []);
+  } catch {
+    // Le classement et le releve sont du confort : leur echec ne casse pas la partie.
+  }
 }
 
 // ---------------------------------------------------------------------- scene
@@ -169,7 +166,7 @@ function synchroniserScene() {
 /** Ou vit cet animal : dans son enclos s'il a un proprietaire, au marche sinon. */
 function zoneDe(animal) {
   if (animal.eleveurId == null) {
-    return { centre: POSITION_MARCHE.clone(), rayon: 6 };
+    return { centre: POSITION_MARCHE.clone(), rayon: 8.5 };
   }
   const position = enclosAffiches.get(animal.enclos);
   return position
@@ -222,23 +219,27 @@ function signaler(erreur) {
   hud.journal(message, 'erreur');
 }
 
-async function lancerAction(action) {
-  if (etat.eleveurId == null || etat.selection == null) {
+/** Ajoute le mouvement d'argent au message quand il y en a un. */
+function messageAvecMontant(resultat) {
+  const montant = Number(resultat.montant ?? 0);
+  return montant === 0 ? resultat.message : `${resultat.message} ${eurosSigne(montant)}`;
+}
+
+async function lancerAction(action, animalIdForce = null) {
+  const animalId = animalIdForce ?? etat.selection;
+  if (etat.eleveurId == null || animalId == null) {
     return;
   }
 
-  const animalId = etat.selection;
   const visuel = visuels.get(animalId);
 
   try {
     const resultat = await api.action(etat.eleveurId, animalId, action);
-    hud.toast(resultat.message);
-    hud.journal(resultat.message);
+    const message = messageAvecMontant(resultat);
+    hud.toast(message);
+    hud.journal(message);
     visuel?.jouerAction(action);
 
-    if (action === 'recolte') {
-      enregistrerRecolte(resultat.animal);
-    }
     if (action === 'vente') {
       selectionner(null);
     }
@@ -262,14 +263,15 @@ async function creerAnimal() {
       race: saisie.race,
       couleur: saisie.couleur,
       enclos: saisie.enclos,
-      litresDeLaitParJour: saisie.litresDeLaitParJour,
-      oeufsParSemaine: saisie.oeufsParSemaine,
       eleveurId: saisie.acheter ? etat.eleveurId : null,
     });
 
-    const message = `${animal.nom} arrive à la ferme !`;
+    const message = saisie.acheter && etat.eleveurId
+      ? `${animal.nom} rejoint ton troupeau.`
+      : `${animal.nom} arrive au marché.`;
     hud.toast(message);
     hud.journal(message);
+
     await rafraichir();
     selectionner(animal.id);
   } catch (erreur) {
@@ -285,7 +287,7 @@ async function creerEleveur() {
 
   try {
     const eleveur = await api.creerEleveur(prenom);
-    hud.toast(`${eleveur.prenom} rejoint la ferme.`);
+    hud.toast(`${eleveur.prenom} rejoint la ferme avec ${eleveur.solde} €.`);
     hud.journal(`${eleveur.prenom} rejoint la ferme.`);
     changerEleveur(eleveur.id);
     await rafraichir();
@@ -318,6 +320,8 @@ function changerEleveur(id) {
   }
   majCompteurs();
   majFiche();
+  majMarche();
+  majCompte();
 }
 
 function selectionner(id) {
@@ -402,20 +406,34 @@ hud.surAction(lancerAction);
 hud.surNouvelAnimal(creerAnimal);
 hud.surNouvelEleveur(creerEleveur);
 hud.surDemenagement(demenager);
+hud.surMarche((animalId, action) => {
+  selectionner(animalId);
+  if (action === 'achat') {
+    lancerAction('achat', animalId);
+  } else {
+    hud.afficherOnglet('ferme');
+  }
+});
 
 async function demarrer() {
   boucle();
 
   // L'API peut encore etre en train de demarrer derriere nginx : on insiste.
   for (let tentative = 1; tentative <= 20; tentative += 1) {
+    try {
+      hud.definirCatalogue(await api.listerEspeces());
+    } catch {
+      hud.chargement(`La ferme se réveille… (tentative ${tentative})`);
+      await new Promise((attendre) => setTimeout(attendre, 1500));
+      continue;
+    }
+
     if (await rafraichir()) {
       hud.cacherChargement();
       hud.journal('Bienvenue à la ferme.');
       setInterval(() => rafraichir(), PERIODE_RAFRAICHISSEMENT);
       return;
     }
-    hud.chargement(`La ferme se réveille… (tentative ${tentative})`);
-    await new Promise((attendre) => setTimeout(attendre, 1500));
   }
 
   hud.chargement("L'API ne répond pas. Vérifie que la stack Docker est démarrée.");
@@ -427,6 +445,7 @@ window.ferme = {
   etat,
   visuels,
   monde,
+  hud,
   selectionner,
   rafraichir,
   lancerAction,

@@ -82,7 +82,7 @@ export function cadrerFerme(monde, positions) {
 
   const centre = boite.getCenter(new THREE.Vector3());
   const taille = boite.getSize(new THREE.Vector3());
-  const rayon = Math.max(taille.x, taille.z) * 0.5;
+  const rayon = Math.max(taille.x, taille.z) * 0.62;
   const distance = Math.min(80, Math.max(26, rayon / Math.tan((monde.camera.fov * Math.PI) / 360)));
 
   monde.controles.target.copy(centre);
@@ -222,7 +222,7 @@ export function creerMarche(position) {
   marche.position.copy(position);
 
   const sol = new THREE.Mesh(
-    new THREE.CircleGeometry(9, 40),
+    new THREE.CircleGeometry(12, 44),
     new THREE.MeshStandardMaterial({ color: '#c2a878', roughness: 1 }),
   );
   sol.rotation.x = -Math.PI / 2;
@@ -231,24 +231,37 @@ export function creerMarche(position) {
   marche.add(sol);
 
   // Un petit auvent de marche.
+  // L'auvent est repousse au fond de la place : au centre, il cacherait les
+  // animaux vus depuis la camera.
+  const auvent = new THREE.Group();
+  auvent.position.set(0, 0, -7.5);
+
   const bois = new THREE.MeshStandardMaterial({ color: '#8d6743', roughness: 0.9 });
-  for (const [x, z] of [[-3.4, -3.4], [3.4, -3.4], [-3.4, 3.4], [3.4, 3.4]]) {
+  for (const [x, z] of [[-2.6, -1.6], [2.6, -1.6], [-2.6, 1.6], [2.6, 1.6]]) {
     const pied = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 3.4, 6), bois);
     pied.position.set(x, 1.7, z);
     pied.castShadow = true;
-    marche.add(pied);
+    auvent.add(pied);
   }
 
   const toit = new THREE.Mesh(
-    new THREE.ConeGeometry(6.4, 1.8, 4),
+    new THREE.ConeGeometry(4.4, 1.6, 4),
     new THREE.MeshStandardMaterial({ color: '#c0503f', flatShading: true, roughness: 0.9 }),
   );
-  toit.position.y = 4.3;
+  toit.position.y = 4.2;
   toit.rotation.y = Math.PI / 4;
   toit.castShadow = true;
-  marche.add(toit);
+  auvent.add(toit);
 
-  marche.add(creerPanneau('Marché', new THREE.Vector3(0, 0, 6.4)));
+  // Un etal, pour habiller la place.
+  const etal = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.18, 1.4), bois);
+  etal.position.set(0, 1, 0);
+  etal.castShadow = true;
+  auvent.add(etal);
+
+  marche.add(auvent);
+
+  marche.add(creerPanneau('Marché', new THREE.Vector3(0, 0, 9)));
   return marche;
 }
 

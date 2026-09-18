@@ -24,69 +24,111 @@
       </label>
       <button id="nouvel-eleveur" class="bouton bouton--discret">+ Éleveur</button>
       <div class="compteurs">
+        <span title="Argent disponible">💶 <b id="compteur-solde">—</b></span>
+        <span title="Argent + valeur du troupeau">📈 <b id="compteur-fortune">—</b></span>
         <span title="Animaux du troupeau">🐾 <b id="compteur-troupeau">0</b></span>
-        <span title="Litres de lait recoltes">🥛 <b id="compteur-lait">0</b></span>
-        <span title="Oeufs ramasses">🥚 <b id="compteur-oeufs">0</b></span>
       </div>
       <button id="bouton-aide" class="bouton bouton--discret" title="Comment jouer">?</button>
     </header>
 
     <aside id="panneau">
-      <div id="panneau-vide" class="panneau__vide">
-        Clique sur un animal pour t'en occuper.
-      </div>
+      <nav class="onglets">
+        <button class="onglet onglet--actif" data-onglet="ferme">Ferme</button>
+        <button class="onglet" data-onglet="marche">Marché <span id="pastille-marche" class="pastille">0</span></button>
+        <button class="onglet" data-onglet="compte">Compte</button>
+      </nav>
 
-      <div id="fiche" hidden>
-        <div class="fiche__entete">
-          <span id="fiche-emoji" class="fiche__emoji">🐄</span>
-          <div>
-            <div id="fiche-nom" class="fiche__nom">—</div>
-            <div id="fiche-detail" class="fiche__detail">—</div>
+      <!-- ------------------------------------------------------ onglet ferme -->
+      <section class="vue vue--active" data-vue="ferme">
+        <div id="panneau-vide" class="panneau__vide">
+          Clique sur un animal pour t'en occuper.
+        </div>
+
+        <div id="fiche" hidden>
+          <div class="fiche__entete">
+            <span id="fiche-emoji" class="fiche__emoji">🐄</span>
+            <div class="fiche__identite">
+              <div id="fiche-nom" class="fiche__nom">—</div>
+              <div id="fiche-detail" class="fiche__detail">—</div>
+            </div>
+            <div id="fiche-prix" class="fiche__prix">—</div>
+          </div>
+
+          <div class="jauges">
+            <div class="jauge">
+              <div class="jauge__entete"><span>🍽️ Faim</span><b id="valeur-faim">0 %</b></div>
+              <div class="jauge__fond"><div id="barre-faim" class="jauge__barre jauge__barre--faim"></div></div>
+            </div>
+            <div class="jauge">
+              <div class="jauge__entete"><span>❤️ Santé</span><b id="valeur-sante">100 %</b></div>
+              <div class="jauge__fond"><div id="barre-sante" class="jauge__barre jauge__barre--sante"></div></div>
+            </div>
+          </div>
+
+          <div class="fiche__lignes">
+            <div><span>Éleveur</span><b id="fiche-eleveur">—</b></div>
+            <div><span>Enclos</span><b id="fiche-enclos">—</b></div>
+            <div><span>État</span><b id="fiche-etat">—</b></div>
+            <div><span>Production</span><b id="fiche-production">—</b></div>
+            <div><span>Revente</span><b id="fiche-revente">—</b></div>
+          </div>
+
+          <div class="fiche__actions">
+            <button class="bouton action" data-action="repas"><span>🌾 Nourrir</span><small></small></button>
+            <button class="bouton action" data-action="soin"><span>💊 Soigner</span><small></small></button>
+            <button class="bouton action" data-action="balade"><span>🚶 Balade</span><small></small></button>
+            <button class="bouton action" data-action="recolte"><span>🪣 Récolter</span><small></small></button>
+            <button class="bouton action" data-action="achat"><span>💰 Acheter</span><small></small></button>
+            <button class="bouton action bouton--danger" data-action="vente"><span>🏷️ Vendre</span><small></small></button>
+          </div>
+
+          <div class="fiche__secondaire">
+            <label class="champ champ--ligne">
+              Déplacer vers l'enclos
+              <input id="fiche-nouvel-enclos" type="text" maxlength="20" placeholder="ex. 4" />
+              <button id="bouton-demenager" class="bouton bouton--discret">OK</button>
+            </label>
           </div>
         </div>
 
-        <div class="fiche__lignes">
-          <div><span>Éleveur</span><b id="fiche-eleveur">—</b></div>
-          <div><span>Enclos</span><b id="fiche-enclos">—</b></div>
-          <div><span>État</span><b id="fiche-etat">—</b></div>
-          <div id="fiche-ligne-production"><span id="fiche-production-label">Production</span><b id="fiche-production">—</b></div>
+        <button id="bouton-nouvel-animal" class="bouton bouton--large">+ Faire entrer un animal</button>
+
+        <div class="journal">
+          <div class="journal__titre">Journal de la ferme</div>
+          <ul id="journal-liste"></ul>
         </div>
+      </section>
 
-        <div class="fiche__actions">
-          <button class="bouton action" data-action="repas">🌾 Nourrir</button>
-          <button class="bouton action" data-action="soin">💊 Soigner</button>
-          <button class="bouton action" data-action="balade">🚶 Balade</button>
-          <button class="bouton action" data-action="recolte">🪣 Récolter</button>
-          <button class="bouton action" data-action="achat">💰 Acheter</button>
-          <button class="bouton action bouton--danger" data-action="vente">🏷️ Vendre</button>
+      <!-- ----------------------------------------------------- onglet marché -->
+      <section class="vue" data-vue="marche">
+        <p class="vue__intro">
+          Ces animaux n'appartiennent à personne et attendent au marché, au fond de la prairie.
+        </p>
+        <ul id="marche-liste" class="liste"></ul>
+        <p id="marche-vide" class="panneau__vide" hidden>Le marché est vide. Fais entrer un animal !</p>
+      </section>
+
+      <!-- ----------------------------------------------------- onglet compte -->
+      <section class="vue" data-vue="compte">
+        <div class="bloc">
+          <div class="bloc__titre">Classement des fortunes</div>
+          <ul id="classement-liste" class="liste"></ul>
         </div>
-
-        <div class="fiche__secondaire">
-          <label class="champ champ--ligne">
-            Déplacer vers l'enclos
-            <input id="fiche-nouvel-enclos" type="text" maxlength="20" placeholder="ex. 4" />
-            <button id="bouton-demenager" class="bouton bouton--discret">OK</button>
-          </label>
+        <div class="bloc">
+          <div class="bloc__titre">Relevé de compte</div>
+          <ul id="mouvements-liste" class="liste"></ul>
+          <p id="mouvements-vide" class="panneau__vide" hidden>Aucune opération pour l'instant.</p>
         </div>
-      </div>
-
-      <button id="bouton-nouvel-animal" class="bouton bouton--large">+ Faire entrer un animal</button>
-
-      <div class="journal">
-        <div class="journal__titre">Journal de la ferme</div>
-        <ul id="journal-liste"></ul>
-      </div>
+      </section>
     </aside>
 
     <dialog id="modale-animal">
       <form method="dialog" id="formulaire-animal">
         <h2>Un nouvel animal arrive</h2>
         <label class="champ">Espèce
-          <select name="espece" id="animal-espece">
-            <option value="VACHE">🐄 Vache</option>
-            <option value="POULE">🐔 Poule</option>
-          </select>
+          <select name="espece" id="animal-espece"></select>
         </label>
+        <p id="animal-resume" class="resume">—</p>
         <label class="champ">Nom<input name="nom" required maxlength="40" placeholder="marguerite" /></label>
         <label class="champ">Race<input name="race" required maxlength="40" placeholder="Charolaise" /></label>
         <label class="champ">Couleur
@@ -97,14 +139,13 @@
             <option value="orange">orange</option>
             <option value="grise">grise</option>
             <option value="rousse">rousse</option>
+            <option value="rose">rose</option>
           </select>
         </label>
         <label class="champ">Enclos<input name="enclos" required maxlength="20" placeholder="1" value="1" /></label>
-        <label class="champ" id="champ-lait">Litres de lait par jour<input name="litresDeLaitParJour" type="number" min="0" max="60" value="18" /></label>
-        <label class="champ" id="champ-oeufs" hidden>Œufs par semaine<input name="oeufsParSemaine" type="number" min="0" max="20" value="5" /></label>
         <label class="champ champ--case">
           <input type="checkbox" name="acheter" id="animal-acheter" checked />
-          Je l'achète tout de suite
+          Je l'achète tout de suite <b id="animal-prix-achat"></b>
         </label>
         <div class="modale__actions">
           <!-- formnovalidate : sans lui, les champs requis bloquent la fermeture -->
@@ -118,6 +159,7 @@
       <form method="dialog" id="formulaire-eleveur">
         <h2>Nouvel éleveur</h2>
         <label class="champ">Prénom<input name="prenom" required maxlength="40" placeholder="camille" /></label>
+        <p class="resume">Il démarre avec 300 € en poche.</p>
         <div class="modale__actions">
           <!-- formnovalidate : sans lui, les champs requis bloquent la fermeture -->
           <button value="annuler" formnovalidate class="bouton bouton--discret">Annuler</button>
@@ -130,16 +172,19 @@
       <div class="aide">
         <h2>Comment jouer</h2>
         <ul>
-          <li>Choisis ton éleveur en haut à gauche, ou crées-en un.</li>
-          <li>Clique sur un animal pour ouvrir sa fiche.</li>
-          <li>Les animaux sans clôture, au fond, sont <b>au marché</b> : achète-les pour les faire entrer dans ton troupeau.</li>
-          <li>Tu ne peux nourrir, soigner, promener, récolter ou vendre que <b>tes</b> animaux : la ferme refuse le reste.</li>
-          <li>Récolter donne du lait (vaches) ou des œufs (poules).</li>
-          <li>Un animal vendu quitte la ferme et n'accepte plus aucune action.</li>
+          <li>Choisis ton éleveur en haut à gauche. Tu démarres avec <b>300 €</b>.</li>
+          <li>Onglet <b>Marché</b> : achète des animaux. Chaque espèce a son prix, sa production et son appétit.</li>
+          <li>Clique sur un animal pour ouvrir sa fiche et t'en occuper.</li>
+          <li><b>Récolter</b> vend la production et remplit la caisse, mais fatigue l'animal et impose d'attendre entre deux récoltes.</li>
+          <li>Un animal <b>affamé</b> ou <b>épuisé</b> refuse de produire : nourris-le (ça coûte du fourrage) ou appelle le vétérinaire.</li>
+          <li>Le <b>cochon</b> ne se récolte pas : chaque repas l'engraisse et augmente sa valeur à la revente.</li>
+          <li>Le <b>cheval</b> ne se récolte pas non plus : ce sont ses promenades qui rapportent.</li>
+          <li>Revendre rapporte 90 % de la valeur de l'animal.</li>
+          <li>Tu ne peux t'occuper que de <b>tes</b> animaux.</li>
         </ul>
         <p class="aide__note">
-          Tout passe par l'API Spring Boot et la base PostgreSQL : recharge la page,
-          ta ferme est toujours là.
+          Tout passe par l'API Spring Boot et la base PostgreSQL : ton argent, tes animaux
+          et ton relevé de compte survivent au rechargement de la page.
         </p>
         <div class="modale__actions">
           <button id="fermer-aide" class="bouton">Compris</button>

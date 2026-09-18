@@ -29,6 +29,10 @@
       "name": "Animaux"
     },
     {
+      "description": "Le catalogue du marche : prix d'achat, production, tarifs des repas et des soins pour chaque espece elevee a la ferme.",
+      "name": "Catalogue"
+    },
+    {
       "description": "Les eleveurs et leurs actions sur le cheptel : achat, vente, repas, soin, balade et recolte. Un eleveur n'agit que sur ses propres animaux.",
       "name": "Eleveurs"
     }
@@ -47,10 +51,17 @@
             "required": false,
             "schema": {
               "type": "string",
-              "description": "Espece de l'animal. Elle determine la formulation des messages et la nature de la production : du lait pour une vache, des oeufs pour une poule.",
+              "description": "Espece de l'animal. Elle determine sa production, ses tarifs et la vitesse a laquelle il a faim. Le catalogue complet est expose par `GET /api/especes`.",
               "enum": [
                 "VACHE",
-                "POULE"
+                "CHEVRE",
+                "MOUTON",
+                "POULE",
+                "CANARD",
+                "OIE",
+                "LAPIN",
+                "COCHON",
+                "CHEVAL"
               ]
             }
           },
@@ -916,6 +927,110 @@
           }
         },
         "summary": "Creer un eleveur",
+        "tags": [
+          "Eleveurs"
+        ]
+      }
+    },
+    "/api/eleveurs/classement": {
+      "get": {
+        "description": "La fortune, c'est l'argent en caisse plus la valeur de revente du troupeau.",
+        "operationId": "recupereClassement",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClassementResponse"
+                  }
+                }
+              }
+            },
+            "description": "Classement, du plus riche au plus pauvre"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Classer les eleveurs par fortune",
         "tags": [
           "Eleveurs"
         ]
@@ -1927,6 +2042,148 @@
           "Eleveurs"
         ]
       }
+    },
+    "/api/eleveurs/{id}/mouvements": {
+      "get": {
+        "description": "Les 50 dernieres operations (achats, ventes, repas, soins, recoltes, promenades), de la plus recente a la plus ancienne.",
+        "operationId": "recupereMouvements",
+        "parameters": [
+          {
+            "description": "Identifiant de l'eleveur",
+            "example": 1,
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MouvementResponse"
+                  }
+                }
+              }
+            },
+            "description": "Releve de compte"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Consulter le releve de compte d'un eleveur",
+        "tags": [
+          "Eleveurs"
+        ]
+      }
+    },
+    "/api/especes": {
+      "get": {
+        "description": "Triees par prix croissant. C'est ce qui alimente le marche du jeu.",
+        "operationId": "recupereEspeces",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EspeceResponse"
+                  }
+                }
+              }
+            },
+            "description": "Catalogue des especes"
+          }
+        },
+        "summary": "Lister les especes et leurs tarifs",
+        "tags": [
+          "Catalogue"
+        ]
+      }
     }
   },
   "components": {
@@ -1942,7 +2199,17 @@
           "message": {
             "type": "string",
             "description": "Message metier de l'action, formule selon l'espece",
-            "example": "La vache emily a ete nourrie."
+            "example": "La vache emily a ete nourrie. (fourrage : 4.00 €)"
+          },
+          "montant": {
+            "type": "number",
+            "description": "Mouvement d'argent : negatif pour une depense, positif pour une recette",
+            "example": -4
+          },
+          "solde": {
+            "type": "number",
+            "description": "Solde de l'eleveur apres l'action",
+            "example": 244.6
           }
         }
       },
@@ -1964,7 +2231,7 @@
           "eleveurId": {
             "type": "integer",
             "format": "int64",
-            "description": "Identifiant du proprietaire, null si l'animal n'appartient a personne",
+            "description": "Identifiant du proprietaire, null si l'animal est au marche",
             "example": 1
           },
           "eleveurPrenom": {
@@ -1982,7 +2249,14 @@
             "description": "Espece de l'animal",
             "enum": [
               "VACHE",
-              "POULE"
+              "CHEVRE",
+              "MOUTON",
+              "POULE",
+              "CANARD",
+              "OIE",
+              "LAPIN",
+              "COCHON",
+              "CHEVAL"
             ],
             "example": "VACHE"
           },
@@ -1997,33 +2271,127 @@
             ],
             "example": "LIBRE"
           },
+          "faim": {
+            "type": "integer",
+            "format": "int32",
+            "description": "0 = repu, 100 = affame. Monte tout seul avec le temps",
+            "example": 35
+          },
           "id": {
             "type": "integer",
             "format": "int64",
             "description": "Identifiant de l'animal",
             "example": 1
           },
-          "litresDeLaitParJour": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Production laitiere quotidienne, null pour une poule",
-            "example": 18
-          },
           "nom": {
             "type": "string",
             "description": "Nom de l'animal",
             "example": "emily"
           },
-          "oeufsParSemaine": {
+          "peutEtreRecolte": {
+            "type": "boolean",
+            "description": "Vrai si une recolte est possible tout de suite",
+            "example": true
+          },
+          "prix": {
+            "type": "number",
+            "description": "Valeur marchande, c'est le prix d'achat au marche",
+            "example": 230
+          },
+          "production": {
+            "type": "string",
+            "description": "Ce que rend une recolte",
+            "enum": [
+              "LAIT",
+              "OEUFS",
+              "LAINE",
+              "DUVET",
+              "LAPEREAUX",
+              "AUCUNE"
+            ],
+            "example": "LAIT"
+          },
+          "quantiteProduction": {
             "type": "integer",
             "format": "int32",
-            "description": "Ponte hebdomadaire, null pour une vache",
-            "example": 5
+            "description": "Quantite rendue a chaque recolte",
+            "example": 18
           },
           "race": {
             "type": "string",
             "description": "Race de l'animal",
             "example": "Highland"
+          },
+          "sante": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Sante en pourcentage : baisse a chaque recolte, remontee par les soins",
+            "example": 92
+          },
+          "secondesAvantRecolte": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Secondes restantes avant la prochaine recolte",
+            "example": 0
+          },
+          "unite": {
+            "type": "string",
+            "description": "Unite de la production",
+            "example": "litres de lait"
+          },
+          "valeurDeRevente": {
+            "type": "number",
+            "description": "Ce que la ferme rachete l'animal (valeur moins 10 % de decote)",
+            "example": 207
+          },
+          "valeurRecolte": {
+            "type": "number",
+            "description": "Ce que rapporte une recolte au prix du marche",
+            "example": 27
+          }
+        }
+      },
+      "ClassementResponse": {
+        "type": "object",
+        "description": "Place d'un eleveur au classement des fortunes",
+        "properties": {
+          "eleveurId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identifiant de l'eleveur",
+            "example": 1
+          },
+          "fortune": {
+            "type": "number",
+            "description": "Solde plus troupeau",
+            "example": 662.6
+          },
+          "nombreAnimaux": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Taille du troupeau",
+            "example": 2
+          },
+          "prenom": {
+            "type": "string",
+            "description": "Prenom de l'eleveur",
+            "example": "alyssia"
+          },
+          "rang": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Rang, 1 = le plus riche",
+            "example": 1
+          },
+          "solde": {
+            "type": "number",
+            "description": "Argent disponible",
+            "example": 248.6
+          },
+          "valeurTroupeau": {
+            "type": "number",
+            "description": "Valeur de revente du troupeau",
+            "example": 414
           }
         }
       },
@@ -2041,7 +2409,7 @@
           "eleveurId": {
             "type": "integer",
             "format": "int64",
-            "description": "Eleveur qui achete l'animal des son arrivee. Optionnel : sans lui, l'animal reste sans proprietaire jusqu'a un achat",
+            "description": "Eleveur qui achete l'animal des son arrivee. Son prix lui est debite. Sans lui, l'animal attend au marche",
             "example": 1
           },
           "enclos": {
@@ -2053,19 +2421,19 @@
           },
           "espece": {
             "type": "string",
-            "description": "Espece de l'animal, elle determine son comportement et sa production",
+            "description": "Espece de l'animal : elle fixe sa production, ses tarifs et son appetit",
             "enum": [
               "VACHE",
-              "POULE"
+              "CHEVRE",
+              "MOUTON",
+              "POULE",
+              "CANARD",
+              "OIE",
+              "LAPIN",
+              "COCHON",
+              "CHEVAL"
             ],
             "example": "VACHE"
-          },
-          "litresDeLaitParJour": {
-            "type": "integer",
-            "format": "int32",
-            "description": "Production laitiere quotidienne. Vaches uniquement, 18 par defaut",
-            "example": 22,
-            "minimum": 0
           },
           "nom": {
             "type": "string",
@@ -2074,11 +2442,11 @@
             "maxLength": 255,
             "minLength": 0
           },
-          "oeufsParSemaine": {
+          "quantiteProduction": {
             "type": "integer",
             "format": "int32",
-            "description": "Ponte hebdomadaire. Poules uniquement, 5 par defaut",
-            "example": 6,
+            "description": "Quantite rendue a chaque recolte. Par defaut, celle de l'espece",
+            "example": 18,
             "minimum": 0
           },
           "race": {
@@ -2115,7 +2483,7 @@
       },
       "EleveurResponse": {
         "type": "object",
-        "description": "Eleveur et, selon la route, le detail de son troupeau",
+        "description": "Eleveur, son porte-monnaie et, selon la route, son troupeau",
         "properties": {
           "animaux": {
             "type": "array",
@@ -2123,6 +2491,11 @@
             "items": {
               "$ref": "#/components/schemas/AnimalResponse"
             }
+          },
+          "fortune": {
+            "type": "number",
+            "description": "Solde plus la valeur de revente du troupeau",
+            "example": 662.6
           },
           "id": {
             "type": "integer",
@@ -2140,6 +2513,11 @@
             "type": "string",
             "description": "Prenom de l'eleveur",
             "example": "alyssia"
+          },
+          "solde": {
+            "type": "number",
+            "description": "Argent disponible, en euros",
+            "example": 248.6
           }
         }
       },
@@ -2186,6 +2564,99 @@
           }
         }
       },
+      "EspeceResponse": {
+        "type": "object",
+        "description": "Caracteristiques et tarifs d'une espece",
+        "properties": {
+          "coutRepas": {
+            "type": "number",
+            "description": "Cout d'un repas",
+            "example": 4
+          },
+          "coutSoin": {
+            "type": "number",
+            "description": "Cout d'une visite du veterinaire",
+            "example": 20
+          },
+          "delaiSecondes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Delai entre deux recoltes, en secondes",
+            "example": 180
+          },
+          "designation": {
+            "type": "string",
+            "description": "Designation utilisee dans les messages",
+            "example": "La vache"
+          },
+          "espece": {
+            "type": "string",
+            "description": "Identifiant de l'espece",
+            "enum": [
+              "VACHE",
+              "CHEVRE",
+              "MOUTON",
+              "POULE",
+              "CANARD",
+              "OIE",
+              "LAPIN",
+              "COCHON",
+              "CHEVAL"
+            ],
+            "example": "VACHE"
+          },
+          "faimParMinute": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Points de faim gagnes par minute",
+            "example": 6
+          },
+          "gainParBalade": {
+            "type": "number",
+            "description": "Recette d'une promenade",
+            "example": 0
+          },
+          "gainParRepas": {
+            "type": "number",
+            "description": "Valeur ajoutee a l'animal a chaque repas (engraissement)",
+            "example": 0
+          },
+          "prix": {
+            "type": "number",
+            "description": "Prix d'achat d'un animal de cette espece",
+            "example": 230
+          },
+          "prixUnitaire": {
+            "type": "number",
+            "description": "Prix de vente d'une unite de production",
+            "example": 1.5
+          },
+          "production": {
+            "type": "string",
+            "description": "Ce que rend une recolte",
+            "enum": [
+              "LAIT",
+              "OEUFS",
+              "LAINE",
+              "DUVET",
+              "LAPEREAUX",
+              "AUCUNE"
+            ],
+            "example": "LAIT"
+          },
+          "quantiteParDefaut": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Quantite rendue a chaque recolte",
+            "example": 18
+          },
+          "unite": {
+            "type": "string",
+            "description": "Unite de la production",
+            "example": "litres de lait"
+          }
+        }
+      },
       "MajEnclosRequest": {
         "type": "object",
         "description": "Nouvel enclos de l'animal",
@@ -2219,6 +2690,58 @@
         "required": [
           "etat"
         ]
+      },
+      "MouvementResponse": {
+        "type": "object",
+        "description": "Ligne du releve de compte d'un eleveur",
+        "properties": {
+          "animalId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Animal concerne, s'il existe encore",
+            "example": 1
+          },
+          "horodatage": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date de l'operation",
+            "example": "2026-09-18T09:12:44.512Z"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identifiant du mouvement",
+            "example": 12
+          },
+          "libelle": {
+            "type": "string",
+            "description": "Libelle lisible",
+            "example": "La vache emily a donne 18 litres de lait. Vendu 27.00 €."
+          },
+          "montant": {
+            "type": "number",
+            "description": "Montant : negatif pour une depense, positif pour une recette",
+            "example": 27
+          },
+          "soldeApres": {
+            "type": "number",
+            "description": "Solde apres l'operation",
+            "example": 271.6
+          },
+          "type": {
+            "type": "string",
+            "description": "Nature du mouvement",
+            "enum": [
+              "ACHAT",
+              "VENTE",
+              "REPAS",
+              "SOIN",
+              "RECOLTE",
+              "PROMENADE"
+            ],
+            "example": "RECOLTE"
+          }
+        }
       }
     }
   }

@@ -431,3 +431,241 @@ dialog h2 {
     font-size: 0.9rem;
   }
 }
+
+/* --------------------------------------------------------------- onglets */
+
+.onglets {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.onglet {
+  flex: 1;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 7px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texte-doux);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.onglet:hover {
+  color: var(--texte);
+}
+
+.onglet--actif {
+  background: rgba(143, 212, 106, 0.16);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.pastille {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent-sombre);
+  color: #0f1a12;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.vue {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.vue--active {
+  display: flex;
+}
+
+.vue__intro {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--texte-doux);
+}
+
+/* ---------------------------------------------------------------- jauges */
+
+.jauges {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.jauge__entete {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--texte-doux);
+  margin-bottom: 3px;
+}
+
+.jauge__entete b {
+  color: var(--texte);
+  font-variant-numeric: tabular-nums;
+}
+
+.jauge__fond {
+  height: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.jauge__barre {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.35s ease, background 0.35s ease;
+}
+
+.jauge__barre--attention {
+  background: #e2c05a;
+}
+
+.jauge__barre--alerte {
+  background: var(--danger);
+}
+
+/* ------------------------------------------------------------ fiche plus */
+
+.fiche__identite {
+  flex: 1;
+  min-width: 0;
+}
+
+.fiche__prix {
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.fiche__actions .bouton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  line-height: 1.25;
+}
+
+.fiche__actions small {
+  font-size: 0.72rem;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------- listes */
+
+.liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.liste li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  font-size: 0.86rem;
+}
+
+.article__emoji {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.article__texte {
+  flex: 1;
+  min-width: 0;
+}
+
+.article__nom {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.article__detail {
+  color: var(--texte-doux);
+  font-size: 0.78rem;
+}
+
+.article__prix {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.article .bouton {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+
+.mouvement__montant {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mouvement__montant--positif {
+  color: var(--accent);
+}
+
+.mouvement__montant--negatif {
+  color: var(--danger);
+}
+
+.rang {
+  width: 22px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--texte-doux);
+}
+
+.rang--moi {
+  color: var(--accent);
+}
+
+.bloc {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.bloc__titre {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--texte-doux);
+}
+
+.resume {
+  margin: 0;
+  padding: 8px 10px;
+  background: rgba(143, 212, 106, 0.1);
+  border-left: 2px solid var(--accent-sombre);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.8rem;
+  color: var(--texte-doux);
+}
