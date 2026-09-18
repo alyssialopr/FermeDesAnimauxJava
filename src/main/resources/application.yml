@@ -3,9 +3,10 @@ spring:
     name: ferme-des-animaux
 
   datasource:
+    # Aucun identifiant en dur dans le depot : voir .env.example et docker-compose.yml.
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ferme}
-    username: ${SPRING_DATASOURCE_USERNAME:ferme}
-    password: ${SPRING_DATASOURCE_PASSWORD:ferme}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     hikari:
       pool-name: ferme-pool
       maximum-pool-size: 10
@@ -27,7 +28,10 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
   error:
-    include-message: always
+    # Les messages d'erreur exploitables sont produits par GestionnaireErreurs :
+    # la page d'erreur par defaut ne divulgue ni message interne ni stacktrace.
+    include-message: never
+    include-stacktrace: never
 
 management:
   endpoints:
