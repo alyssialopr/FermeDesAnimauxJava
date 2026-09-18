@@ -49,8 +49,11 @@ services:
     ports:
       - "${WEB_PORT:-3000}:80"
     volumes:
-      # La doc hors-ligne reste lisible sans serveur, et aussi depuis le jeu.
-      - ./docs:/usr/share/nginx/doc:ro
+      # La doc hors-ligne, lisible aussi depuis le jeu. Seuls ces deux fichiers
+      # sont montes : monter tout docs/ publierait le generateur, les fichiers
+      # npm et node_modules sur le web.
+      - ./docs/api.html:/usr/share/nginx/doc/api.html:ro
+      - ./docs/openapi.json:/usr/share/nginx/doc/openapi.json:ro
 
 volumes:
   ferme-db:
