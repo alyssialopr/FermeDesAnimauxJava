@@ -1,0 +1,2225 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "contact": {
+      "name": "Ferme des animaux - IIM",
+      "url": "https://github.com/alyssialopr/FermeDesAnimauxJava"
+    },
+    "description": "Gestion d'une ferme : des **eleveurs** achetent, vendent, nourrissent, soignent et promenent des **vaches** et des **poules**.\n\n### Principes\n\n- un animal peut arriver a la ferme sans proprietaire, puis etre achete ;\n- un eleveur ne peut agir que sur ses propres animaux, sinon la reponse est `409` avec le message *Cet animal ne vous appartient pas* ;\n- un animal `VENDU`, `MORT` ou `DISPARU` n'accepte plus aucune action ;\n- chaque action renvoie le message metier correspondant ainsi que l'etat de l'animal apres l'action.\n\n### Erreurs\n\nToutes les erreurs suivent la RFC 7807 (`application/problem+json`) : `title`, `status`, `detail`, `instance`, `horodatage`, et `champs` pour les erreurs de validation.",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "title": "API Ferme des animaux",
+    "version": "1.0.0"
+  },
+  "externalDocs": {
+    "description": "Code source et documentation du projet",
+    "url": "https://github.com/alyssialopr/FermeDesAnimauxJava"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Environnement local (docker compose)"
+    }
+  ],
+  "tags": [
+    {
+      "description": "Le cheptel : entree d'un animal a la ferme, recherche filtree, deplacement d'enclos et declaration de sortie definitive (mort ou disparu).",
+      "name": "Animaux"
+    },
+    {
+      "description": "Les eleveurs et leurs actions sur le cheptel : achat, vente, repas, soin, balade et recolte. Un eleveur n'agit que sur ses propres animaux.",
+      "name": "Eleveurs"
+    }
+  ],
+  "paths": {
+    "/api/animaux": {
+      "get": {
+        "description": "Les filtres se combinent. Sans filtre, tout le cheptel est renvoye, trie par nom.",
+        "operationId": "recupereAnimaux",
+        "parameters": [
+          {
+            "description": "Ne garder qu'une espece",
+            "example": "POULE",
+            "in": "query",
+            "name": "espece",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Espece de l'animal. Elle determine la formulation des messages et la nature de la production : du lait pour une vache, des oeufs pour une poule.",
+              "enum": [
+                "VACHE",
+                "POULE"
+              ]
+            }
+          },
+          {
+            "description": "Ne garder que les animaux dans cet etat",
+            "example": "LIBRE",
+            "in": "query",
+            "name": "etat",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Etat de l'animal. `LIBRE` : present a la ferme, toutes les actions sont possibles. `VENDU` : sorti du troupeau apres une vente. `MORT` et `DISPARU` : sorties definitives declarees par la ferme. Hors `LIBRE`, aucune action n'est acceptee.",
+              "enum": [
+                "LIBRE",
+                "VENDU",
+                "MORT",
+                "DISPARU"
+              ]
+            }
+          },
+          {
+            "description": "Ne garder que le troupeau de cet eleveur",
+            "example": 1,
+            "in": "query",
+            "name": "eleveurId",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "description": "Ne garder que les animaux de cet enclos",
+            "example": 3,
+            "in": "query",
+            "name": "enclos",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AnimalResponse"
+                  }
+                }
+              }
+            },
+            "description": "Cheptel correspondant aux filtres"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/animaux",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "nom": "le nom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant, valeur d'enumeration inconnue ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Animal introuvable : 42",
+                      "instance": "/api/animaux/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Animal ou eleveur inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Action impossible": {
+                    "description": "Action impossible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/animaux/2/etat",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal vendu, mort ou disparu"
+          }
+        },
+        "summary": "Lister les animaux, avec filtres optionnels",
+        "tags": [
+          "Animaux"
+        ]
+      },
+      "post": {
+        "description": "Cree une vache ou une poule. Les champs specifiques a l'espece (`litresDeLaitParJour`, `oeufsParSemaine`) sont facultatifs et prennent une valeur par defaut. Si `eleveurId` est fourni, l'animal est achete dans la foulee par cet eleveur.",
+        "operationId": "creerAnimal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreerAnimalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnimalResponse"
+                }
+              }
+            },
+            "description": "Animal enregistre, son adresse est dans l'en-tete Location"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/animaux",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "nom": "le nom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant, valeur d'enumeration inconnue ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Animal introuvable : 42",
+                      "instance": "/api/animaux/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Animal ou eleveur inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Action impossible": {
+                    "description": "Action impossible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/animaux/2/etat",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal vendu, mort ou disparu"
+          }
+        },
+        "summary": "Faire entrer un animal a la ferme",
+        "tags": [
+          "Animaux"
+        ]
+      }
+    },
+    "/api/animaux/{id}": {
+      "delete": {
+        "description": "Efface l'animal de la base. Pour tracer une sortie, preferer PATCH /etat.",
+        "operationId": "supprimerAnimal",
+        "parameters": [
+          {
+            "description": "Identifiant de l'animal",
+            "example": 1,
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Animal supprime"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/animaux",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "nom": "le nom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant, valeur d'enumeration inconnue ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Animal introuvable : 42",
+                      "instance": "/api/animaux/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Animal ou eleveur inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Action impossible": {
+                    "description": "Action impossible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/animaux/2/etat",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal vendu, mort ou disparu"
+          }
+        },
+        "summary": "Retirer definitivement un animal du registre",
+        "tags": [
+          "Animaux"
+        ]
+      },
+      "get": {
+        "operationId": "recupereAnimalParId",
+        "parameters": [
+          {
+            "description": "Identifiant de l'animal",
+            "example": 1,
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnimalResponse"
+                }
+              }
+            },
+            "description": "Fiche de l'animal"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/animaux",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "nom": "le nom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant, valeur d'enumeration inconnue ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Animal introuvable : 42",
+                      "instance": "/api/animaux/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Animal ou eleveur inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Action impossible": {
+                    "description": "Action impossible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/animaux/2/etat",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal vendu, mort ou disparu"
+          }
+        },
+        "summary": "Recuperer un animal par son identifiant",
+        "tags": [
+          "Animaux"
+        ]
+      }
+    },
+    "/api/animaux/{id}/enclos": {
+      "patch": {
+        "description": "Refuse si l'animal n'est plus a la ferme (vendu, mort ou disparu).",
+        "operationId": "changerEnclos",
+        "parameters": [
+          {
+            "description": "Identifiant de l'animal",
+            "example": 1,
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MajEnclosRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnimalResponse"
+                }
+              }
+            },
+            "description": "Animal deplace"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/animaux",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "nom": "le nom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant, valeur d'enumeration inconnue ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Animal introuvable : 42",
+                      "instance": "/api/animaux/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Animal ou eleveur inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Action impossible": {
+                    "description": "Action impossible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/animaux/2/etat",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal vendu, mort ou disparu"
+          }
+        },
+        "summary": "Deplacer un animal dans un autre enclos",
+        "tags": [
+          "Animaux"
+        ]
+      }
+    },
+    "/api/animaux/{id}/etat": {
+      "patch": {
+        "description": "Seuls `MORT` et `DISPARU` sont acceptes ici : la vente passe par l'eleveur et un animal deja sorti du cheptel ne peut plus changer d'etat.",
+        "operationId": "changerEtat",
+        "parameters": [
+          {
+            "description": "Identifiant de l'animal",
+            "example": 1,
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MajEtatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnimalResponse"
+                }
+              }
+            },
+            "description": "Etat mis a jour"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/animaux",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "nom": "le nom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant, valeur d'enumeration inconnue ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Animal introuvable : 42",
+                      "instance": "/api/animaux/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Animal ou eleveur inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Action impossible": {
+                    "description": "Action impossible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/animaux/2/etat",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal vendu, mort ou disparu"
+          }
+        },
+        "summary": "Declarer un animal mort ou disparu",
+        "tags": [
+          "Animaux"
+        ]
+      }
+    },
+    "/api/eleveurs": {
+      "get": {
+        "description": "Version resumee : le champ `animaux` est null, seul `nombreAnimaux` est renseigne.",
+        "operationId": "recupereEleveurs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EleveurResponse"
+                  }
+                }
+              }
+            },
+            "description": "Eleveurs de la ferme, tries par prenom"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Lister les eleveurs",
+        "tags": [
+          "Eleveurs"
+        ]
+      },
+      "post": {
+        "description": "Le prenom doit etre unique a la ferme.",
+        "operationId": "creerEleveur",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreerEleveurRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EleveurResponse"
+                }
+              }
+            },
+            "description": "Eleveur cree, son adresse est dans l'en-tete Location"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Creer un eleveur",
+        "tags": [
+          "Eleveurs"
+        ]
+      }
+    },
+    "/api/eleveurs/{eleveurId}/animaux/{animalId}/achat": {
+      "post": {
+        "description": "Rattache l'animal a l'eleveur et le remet a l'etat `LIBRE`. Refuse si l'animal appartient deja a quelqu'un d'autre, ou s'il est mort ou disparu.",
+        "operationId": "acheter",
+        "parameters": [
+          {
+            "description": "Identifiant de l'acheteur",
+            "example": 2,
+            "in": "path",
+            "name": "eleveurId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "description": "Identifiant de l'animal",
+            "example": 5,
+            "in": "path",
+            "name": "animalId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "killian a achete la poule caramel.",
+                  "animal": {
+                    "id": 5,
+                    "etat": "LIBRE"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Animal achete"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Acheter un animal",
+        "tags": [
+          "Eleveurs"
+        ]
+      }
+    },
+    "/api/eleveurs/{eleveurId}/animaux/{animalId}/balade": {
+      "post": {
+        "operationId": "promener",
+        "parameters": [
+          {
+            "description": "Identifiant du proprietaire",
+            "example": 1,
+            "in": "path",
+            "name": "eleveurId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "description": "Identifiant de l'animal",
+            "example": 1,
+            "in": "path",
+            "name": "animalId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "La vache emily part en balade.",
+                  "animal": {
+                    "id": 1,
+                    "etat": "LIBRE"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Animal parti en balade"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Emmener un de ses animaux en balade",
+        "tags": [
+          "Eleveurs"
+        ]
+      }
+    },
+    "/api/eleveurs/{eleveurId}/animaux/{animalId}/recolte": {
+      "post": {
+        "description": "Du lait pour une vache, des oeufs pour une poule.",
+        "operationId": "recolter",
+        "parameters": [
+          {
+            "description": "Identifiant du proprietaire",
+            "example": 2,
+            "in": "path",
+            "name": "eleveurId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "description": "Identifiant de l'animal",
+            "example": 3,
+            "in": "path",
+            "name": "animalId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "La poule nugget a pondu 5 oeufs cette semaine.",
+                  "animal": {
+                    "id": 3,
+                    "etat": "LIBRE"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Production recoltee"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Recolter la production d'un de ses animaux",
+        "tags": [
+          "Eleveurs"
+        ]
+      }
+    },
+    "/api/eleveurs/{eleveurId}/animaux/{animalId}/repas": {
+      "post": {
+        "operationId": "nourrir",
+        "parameters": [
+          {
+            "description": "Identifiant du proprietaire",
+            "example": 1,
+            "in": "path",
+            "name": "eleveurId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "description": "Identifiant de l'animal",
+            "example": 1,
+            "in": "path",
+            "name": "animalId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "La vache emily a ete nourrie.",
+                  "animal": {
+                    "id": 1,
+                    "etat": "LIBRE"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Animal nourri"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Nourrir un de ses animaux",
+        "tags": [
+          "Eleveurs"
+        ]
+      }
+    },
+    "/api/eleveurs/{eleveurId}/animaux/{animalId}/soin": {
+      "post": {
+        "operationId": "soigner",
+        "parameters": [
+          {
+            "description": "Identifiant du proprietaire",
+            "example": 2,
+            "in": "path",
+            "name": "eleveurId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "description": "Identifiant de l'animal",
+            "example": 3,
+            "in": "path",
+            "name": "animalId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "La poule nugget a ete soignee.",
+                  "animal": {
+                    "id": 3,
+                    "etat": "LIBRE"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Animal soigne"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Soigner un de ses animaux",
+        "tags": [
+          "Eleveurs"
+        ]
+      }
+    },
+    "/api/eleveurs/{eleveurId}/animaux/{animalId}/vente": {
+      "post": {
+        "description": "L'animal passe a l'etat `VENDU` et quitte le troupeau.",
+        "operationId": "vendre",
+        "parameters": [
+          {
+            "description": "Identifiant du proprietaire",
+            "example": 1,
+            "in": "path",
+            "name": "eleveurId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "description": "Identifiant de l'animal",
+            "example": 1,
+            "in": "path",
+            "name": "animalId",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "La vache emily a ete vendue.",
+                  "animal": {
+                    "id": 1,
+                    "etat": "VENDU"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ActionResponse"
+                }
+              }
+            },
+            "description": "Animal vendu"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Vendre un de ses animaux",
+        "tags": [
+          "Eleveurs"
+        ]
+      }
+    },
+    "/api/eleveurs/{id}": {
+      "delete": {
+        "description": "Refuse tant que l'eleveur possede des animaux : il faut d'abord les vendre.",
+        "operationId": "supprimerEleveur",
+        "parameters": [
+          {
+            "description": "Identifiant de l'eleveur",
+            "example": 1,
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Eleveur supprime"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Supprimer un eleveur",
+        "tags": [
+          "Eleveurs"
+        ]
+      },
+      "get": {
+        "operationId": "recupereEleveurParId",
+        "parameters": [
+          {
+            "description": "Identifiant de l'eleveur",
+            "example": 1,
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EleveurResponse"
+                }
+              }
+            },
+            "description": "Fiche de l'eleveur, troupeau detaille inclus"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Validation": {
+                    "description": "Validation",
+                    "value": {
+                      "title": "Requete invalide",
+                      "status": 400,
+                      "detail": "Certains champs sont invalides.",
+                      "instance": "/api/eleveurs",
+                      "horodatage": "2026-09-18T07:27:13.637Z",
+                      "champs": {
+                        "prenom": "le prenom est obligatoire"
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Requete invalide : champ manquant ou corps illisible"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Introuvable": {
+                    "description": "Introuvable",
+                    "value": {
+                      "title": "Ressource introuvable",
+                      "status": 404,
+                      "detail": "Eleveur introuvable : 42",
+                      "instance": "/api/eleveurs/42",
+                      "horodatage": "2026-09-18T07:27:13.544Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Eleveur ou animal inconnu"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "examples": {
+                  "Animal d'un autre eleveur": {
+                    "description": "Animal d'un autre eleveur",
+                    "value": {
+                      "title": "Animal non possede",
+                      "status": 409,
+                      "detail": "Cet animal ne vous appartient pas",
+                      "instance": "/api/eleveurs/2/animaux/1/repas",
+                      "horodatage": "2026-09-18T07:27:13.445Z"
+                    }
+                  },
+                  "Animal indisponible": {
+                    "description": "Animal indisponible",
+                    "value": {
+                      "title": "Action impossible",
+                      "status": 409,
+                      "detail": "Impossible de nourrir la vache emily : l'animal est VENDU.",
+                      "instance": "/api/eleveurs/1/animaux/2/repas",
+                      "horodatage": "2026-09-18T07:27:13.527Z"
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erreur"
+                }
+              }
+            },
+            "description": "Regle metier : animal appartenant a un autre eleveur, animal vendu/mort/disparu, prenom deja pris, ou suppression d'un eleveur dont le troupeau n'est pas vide"
+          }
+        },
+        "summary": "Recuperer un eleveur et son troupeau",
+        "tags": [
+          "Eleveurs"
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActionResponse": {
+        "type": "object",
+        "description": "Resultat d'une action de l'eleveur sur un animal",
+        "properties": {
+          "animal": {
+            "$ref": "#/components/schemas/AnimalResponse",
+            "description": "Etat de l'animal apres l'action"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message metier de l'action, formule selon l'espece",
+            "example": "La vache emily a ete nourrie."
+          }
+        }
+      },
+      "AnimalResponse": {
+        "type": "object",
+        "description": "Animal tel qu'il est enregistre a la ferme",
+        "properties": {
+          "couleur": {
+            "type": "string",
+            "description": "Couleur de la robe ou du plumage",
+            "example": "marron"
+          },
+          "creeLe": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date d'arrivee a la ferme",
+            "example": "2026-09-18T07:26:51.173Z"
+          },
+          "eleveurId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identifiant du proprietaire, null si l'animal n'appartient a personne",
+            "example": 1
+          },
+          "eleveurPrenom": {
+            "type": "string",
+            "description": "Prenom du proprietaire",
+            "example": "alyssia"
+          },
+          "enclos": {
+            "type": "string",
+            "description": "Enclos courant",
+            "example": "1"
+          },
+          "espece": {
+            "type": "string",
+            "description": "Espece de l'animal",
+            "enum": [
+              "VACHE",
+              "POULE"
+            ],
+            "example": "VACHE"
+          },
+          "etat": {
+            "type": "string",
+            "description": "Etat de l'animal : seul LIBRE autorise les actions",
+            "enum": [
+              "LIBRE",
+              "VENDU",
+              "MORT",
+              "DISPARU"
+            ],
+            "example": "LIBRE"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identifiant de l'animal",
+            "example": 1
+          },
+          "litresDeLaitParJour": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Production laitiere quotidienne, null pour une poule",
+            "example": 18
+          },
+          "nom": {
+            "type": "string",
+            "description": "Nom de l'animal",
+            "example": "emily"
+          },
+          "oeufsParSemaine": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Ponte hebdomadaire, null pour une vache",
+            "example": 5
+          },
+          "race": {
+            "type": "string",
+            "description": "Race de l'animal",
+            "example": "Highland"
+          }
+        }
+      },
+      "CreerAnimalRequest": {
+        "type": "object",
+        "description": "Animal a faire entrer a la ferme",
+        "properties": {
+          "couleur": {
+            "type": "string",
+            "description": "Couleur de la robe ou du plumage",
+            "example": "marron",
+            "maxLength": 255,
+            "minLength": 0
+          },
+          "eleveurId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Eleveur qui achete l'animal des son arrivee. Optionnel : sans lui, l'animal reste sans proprietaire jusqu'a un achat",
+            "example": 1
+          },
+          "enclos": {
+            "type": "string",
+            "description": "Enclos dans lequel l'animal est installe",
+            "example": "1",
+            "maxLength": 255,
+            "minLength": 0
+          },
+          "espece": {
+            "type": "string",
+            "description": "Espece de l'animal, elle determine son comportement et sa production",
+            "enum": [
+              "VACHE",
+              "POULE"
+            ],
+            "example": "VACHE"
+          },
+          "litresDeLaitParJour": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Production laitiere quotidienne. Vaches uniquement, 18 par defaut",
+            "example": 22,
+            "minimum": 0
+          },
+          "nom": {
+            "type": "string",
+            "description": "Nom de l'animal",
+            "example": "emily",
+            "maxLength": 255,
+            "minLength": 0
+          },
+          "oeufsParSemaine": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Ponte hebdomadaire. Poules uniquement, 5 par defaut",
+            "example": 6,
+            "minimum": 0
+          },
+          "race": {
+            "type": "string",
+            "description": "Race de l'animal",
+            "example": "Highland",
+            "maxLength": 255,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "couleur",
+          "enclos",
+          "espece",
+          "nom",
+          "race"
+        ]
+      },
+      "CreerEleveurRequest": {
+        "type": "object",
+        "description": "Nouvel eleveur de la ferme",
+        "properties": {
+          "prenom": {
+            "type": "string",
+            "description": "Prenom de l'eleveur, unique a la ferme (casse ignoree)",
+            "example": "alyssia",
+            "maxLength": 255,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "prenom"
+        ]
+      },
+      "EleveurResponse": {
+        "type": "object",
+        "description": "Eleveur et, selon la route, le detail de son troupeau",
+        "properties": {
+          "animaux": {
+            "type": "array",
+            "description": "Troupeau detaille. Renseigne sur la fiche d'un eleveur, null dans la liste des eleveurs",
+            "items": {
+              "$ref": "#/components/schemas/AnimalResponse"
+            }
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Identifiant de l'eleveur",
+            "example": 1
+          },
+          "nombreAnimaux": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Taille du troupeau",
+            "example": 2
+          },
+          "prenom": {
+            "type": "string",
+            "description": "Prenom de l'eleveur",
+            "example": "alyssia"
+          }
+        }
+      },
+      "Erreur": {
+        "type": "object",
+        "description": "Erreur normalisee au format RFC 7807 (application/problem+json)",
+        "properties": {
+          "champs": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Detail par champ, uniquement pour les erreurs de validation (400)",
+            "example": {
+              "nom": "le nom est obligatoire"
+            }
+          },
+          "detail": {
+            "type": "string",
+            "description": "Message explicatif",
+            "example": "Cet animal ne vous appartient pas"
+          },
+          "horodatage": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date de l'erreur",
+            "example": "2026-09-18T07:27:13.445Z"
+          },
+          "instance": {
+            "type": "string",
+            "description": "Chemin de la requete fautive",
+            "example": "/api/eleveurs/2/animaux/1/repas"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Code HTTP",
+            "example": 409
+          },
+          "title": {
+            "type": "string",
+            "description": "Intitule court de l'erreur",
+            "example": "Animal non possede"
+          }
+        }
+      },
+      "MajEnclosRequest": {
+        "type": "object",
+        "description": "Nouvel enclos de l'animal",
+        "properties": {
+          "enclos": {
+            "type": "string",
+            "description": "Enclos de destination",
+            "example": "7",
+            "maxLength": 255,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "enclos"
+        ]
+      },
+      "MajEtatRequest": {
+        "type": "object",
+        "description": "Declaration de sortie definitive d'un animal",
+        "properties": {
+          "etat": {
+            "type": "string",
+            "description": "Nouvel etat, MORT ou DISPARU uniquement. La vente se fait via l'eleveur et un animal ne revient jamais a l'etat LIBRE par cette route",
+            "enum": [
+              "MORT",
+              "DISPARU"
+            ],
+            "example": "DISPARU"
+          }
+        },
+        "required": [
+          "etat"
+        ]
+      }
+    }
+  }
+}

@@ -81,9 +81,27 @@ et les actions — pratique pour déboguer ou piloter une partie.
 
 ## Documentation de l'API (Swagger)
 
-La documentation est générée à partir du code (springdoc-openapi) et se consulte
-sur **http://localhost:8080/swagger-ui.html** — le contrat brut est sur
-`/v3/api-docs`.
+Deux façons de la consulter :
+
+| | |
+|---|---|
+| **Sans rien lancer** | ouvrir **`docs/api.html`** dans un navigateur — un simple double-clic |
+| Avec la stack | http://localhost:8080/swagger-ui.html (le bouton *Try it out* y fonctionne) |
+
+`docs/api.html` est un fichier autonome : Swagger UI et le contrat OpenAPI sont
+embarqués dedans, il ne télécharge rien et n'a besoin d'aucun serveur. Le contrat
+brut est aussi disponible seul dans `docs/openapi.json`, à importer dans Postman ou
+Insomnia.
+
+Pour le régénérer après avoir modifié l'API :
+
+```bash
+docker compose up -d           # l'API doit tourner
+cd docs && npm install && npm run generer
+```
+
+La documentation est générée à partir du code (springdoc-openapi) : c'est la même
+source dans les deux cas.
 
 Elle est complète : chaque opération porte un résumé et une description, chaque
 champ des requêtes et des réponses est décrit avec un exemple, les énumérations
@@ -187,6 +205,11 @@ src/main/java/laFerme/
 src/main/resources/
 ├── application.yml
 └── db/migration/              migrations Flyway
+
+docs/                          documentation hors-ligne
+├── api.html                   Swagger UI + contrat embarqués (ouvrir tel quel)
+├── openapi.json               le contrat seul
+└── generer-doc.mjs            régénère les deux depuis l'API
 
 front/                         le jeu (Three.js + Vite, servi par nginx)
 ├── index.html                 interface 2D posée sur le canvas

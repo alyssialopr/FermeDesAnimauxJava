@@ -1,0 +1,14 @@
+{
+  "name": "ferme-des-animaux-doc",
+  "version": "1.0.0",
+  "description": "Generateur de la documentation Swagger autonome de l'API",
+  "scripts": {
+    "generer": "node generer-doc.mjs",
+    "generer:hors-ligne": "node generer-doc.mjs --hors-ligne"
+  },
+  "type": "module",
+  "devDependencies": {
+    "swagger-ui-dist": "^5.33.0"
+  },
+  "private": true
+}
