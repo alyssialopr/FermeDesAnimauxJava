@@ -1,0 +1,18 @@
+{
+  "name": "ferme-des-animaux-front",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Front WebGL (Three.js) de la ferme des animaux",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0"
+  }
+}

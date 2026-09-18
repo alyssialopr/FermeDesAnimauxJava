@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>La Ferme des Animaux</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐄</text></svg>" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <div id="chargement" class="voile">
+      <div class="voile__boite">
+        <div class="voile__titre">La Ferme des Animaux</div>
+        <div class="voile__texte" id="chargement-texte">Connexion a la ferme…</div>
+      </div>
+    </div>
+
+    <header id="barre">
+      <div class="marque">🐄 La Ferme des Animaux</div>
+      <label class="champ">
+        Je suis
+        <select id="choix-eleveur"></select>
+      </label>
+      <button id="nouvel-eleveur" class="bouton bouton--discret">+ Éleveur</button>
+      <div class="compteurs">
+        <span title="Animaux du troupeau">🐾 <b id="compteur-troupeau">0</b></span>
+        <span title="Litres de lait recoltes">🥛 <b id="compteur-lait">0</b></span>
+        <span title="Oeufs ramasses">🥚 <b id="compteur-oeufs">0</b></span>
+      </div>
+      <button id="bouton-aide" class="bouton bouton--discret" title="Comment jouer">?</button>
+    </header>
+
+    <aside id="panneau">
+      <div id="panneau-vide" class="panneau__vide">
+        Clique sur un animal pour t'en occuper.
+      </div>
+
+      <div id="fiche" hidden>
+        <div class="fiche__entete">
+          <span id="fiche-emoji" class="fiche__emoji">🐄</span>
+          <div>
+            <div id="fiche-nom" class="fiche__nom">—</div>
+            <div id="fiche-detail" class="fiche__detail">—</div>
+          </div>
+        </div>
+
+        <div class="fiche__lignes">
+          <div><span>Éleveur</span><b id="fiche-eleveur">—</b></div>
+          <div><span>Enclos</span><b id="fiche-enclos">—</b></div>
+          <div><span>État</span><b id="fiche-etat">—</b></div>
+          <div id="fiche-ligne-production"><span id="fiche-production-label">Production</span><b id="fiche-production">—</b></div>
+        </div>
+
+        <div class="fiche__actions">
+          <button class="bouton action" data-action="repas">🌾 Nourrir</button>
+          <button class="bouton action" data-action="soin">💊 Soigner</button>
+          <button class="bouton action" data-action="balade">🚶 Balade</button>
+          <button class="bouton action" data-action="recolte">🪣 Récolter</button>
+          <button class="bouton action" data-action="achat">💰 Acheter</button>
+          <button class="bouton action bouton--danger" data-action="vente">🏷️ Vendre</button>
+        </div>
+
+        <div class="fiche__secondaire">
+          <label class="champ champ--ligne">
+            Déplacer vers l'enclos
+            <input id="fiche-nouvel-enclos" type="text" maxlength="20" placeholder="ex. 4" />
+            <button id="bouton-demenager" class="bouton bouton--discret">OK</button>
+          </label>
+        </div>
+      </div>
+
+      <button id="bouton-nouvel-animal" class="bouton bouton--large">+ Faire entrer un animal</button>
+
+      <div class="journal">
+        <div class="journal__titre">Journal de la ferme</div>
+        <ul id="journal-liste"></ul>
+      </div>
+    </aside>
+
+    <dialog id="modale-animal">
+      <form method="dialog" id="formulaire-animal">
+        <h2>Un nouvel animal arrive</h2>
+        <label class="champ">Espèce
+          <select name="espece" id="animal-espece">
+            <option value="VACHE">🐄 Vache</option>
+            <option value="POULE">🐔 Poule</option>
+          </select>
+        </label>
+        <label class="champ">Nom<input name="nom" required maxlength="40" placeholder="marguerite" /></label>
+        <label class="champ">Race<input name="race" required maxlength="40" placeholder="Charolaise" /></label>
+        <label class="champ">Couleur
+          <select name="couleur" id="animal-couleur">
+            <option value="blanche">blanche</option>
+            <option value="marron">marron</option>
+            <option value="noire">noire</option>
+            <option value="orange">orange</option>
+            <option value="grise">grise</option>
+            <option value="rousse">rousse</option>
+          </select>
+        </label>
+        <label class="champ">Enclos<input name="enclos" required maxlength="20" placeholder="1" value="1" /></label>
+        <label class="champ" id="champ-lait">Litres de lait par jour<input name="litresDeLaitParJour" type="number" min="0" max="60" value="18" /></label>
+        <label class="champ" id="champ-oeufs" hidden>Œufs par semaine<input name="oeufsParSemaine" type="number" min="0" max="20" value="5" /></label>
+        <label class="champ champ--case">
+          <input type="checkbox" name="acheter" id="animal-acheter" checked />
+          Je l'achète tout de suite
+        </label>
+        <div class="modale__actions">
+          <button value="annuler" class="bouton bouton--discret">Annuler</button>
+          <button value="creer" class="bouton">Faire entrer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="modale-eleveur">
+      <form method="dialog" id="formulaire-eleveur">
+        <h2>Nouvel éleveur</h2>
+        <label class="champ">Prénom<input name="prenom" required maxlength="40" placeholder="camille" /></label>
+        <div class="modale__actions">
+          <button value="annuler" class="bouton bouton--discret">Annuler</button>
+          <button value="creer" class="bouton">Créer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="modale-aide">
+      <div class="aide">
+        <h2>Comment jouer</h2>
+        <ul>
+          <li>Choisis ton éleveur en haut à gauche, ou crées-en un.</li>
+          <li>Clique sur un animal pour ouvrir sa fiche.</li>
+          <li>Les animaux sans clôture, au fond, sont <b>au marché</b> : achète-les pour les faire entrer dans ton troupeau.</li>
+          <li>Tu ne peux nourrir, soigner, promener, récolter ou vendre que <b>tes</b> animaux : la ferme refuse le reste.</li>
+          <li>Récolter donne du lait (vaches) ou des œufs (poules).</li>
+          <li>Un animal vendu quitte la ferme et n'accepte plus aucune action.</li>
+        </ul>
+        <p class="aide__note">
+          Tout passe par l'API Spring Boot et la base PostgreSQL : recharge la page,
+          ta ferme est toujours là.
+        </p>
+        <div class="modale__actions">
+          <button id="fermer-aide" class="bouton">Compris</button>
+        </div>
+      </div>
+    </dialog>
+
+    <div id="toasts"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

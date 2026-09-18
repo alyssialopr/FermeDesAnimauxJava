@@ -42,3 +42,7 @@ bin/
 ### Local ###
 *.log
 .env
+
+### Front ###
+node_modules/
+front/dist/
