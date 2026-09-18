@@ -1,0 +1,13 @@
+target/
+.git/
+.github/
+.idea/
+.mvn/
+mvnw
+mvnw.cmd
+*.iml
+.DS_Store
+.env
+*.log
+docker-compose.yml
+README.md

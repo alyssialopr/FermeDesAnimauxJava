@@ -1,0 +1,41 @@
+name: ferme-des-animaux
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: ferme-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ferme}
+      POSTGRES_USER: ${POSTGRES_USER:-ferme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD dans le fichier .env}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ferme-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ferme} -d ${POSTGRES_DB:-ferme}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+    image: ferme-des-animaux:latest
+    container_name: ferme-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-ferme}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-ferme}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD dans le fichier .env}
+      FERME_DONNEES_DEMO: ${FERME_DONNEES_DEMO:-true}
+    ports:
+      - "${API_PORT:-8080}:8080"
+
+volumes:
+  ferme-db:
