@@ -27,3 +27,28 @@ jobs:
 
       - name: Construire l'image Docker
         run: docker build -t ferme-des-animaux:${{ github.sha }} .
+
+  front:
+    name: Build du jeu (Three.js)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Installer les dependances
+        working-directory: front
+        run: npm ci
+
+      - name: Construire le bundle
+        working-directory: front
+        run: npm run build
+
+      - name: Construire l'image Docker du front
+        run: docker build -t ferme-des-animaux-web:${{ github.sha }} ./front
