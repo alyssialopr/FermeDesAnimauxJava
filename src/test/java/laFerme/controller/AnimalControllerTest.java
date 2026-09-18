@@ -5,6 +5,7 @@ import laFerme.exception.ActionImpossibleException;
 import laFerme.exception.RessourceIntrouvableException;
 import laFerme.model.Espece;
 import laFerme.model.EtatAnimal;
+import laFerme.model.Production;
 import laFerme.services.AnimalService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
@@ -40,7 +42,10 @@ class AnimalControllerTest {
 
     private AnimalResponse emily() {
         return new AnimalResponse(1L, Espece.VACHE, "emily", "Highland", "marron", "1",
-                EtatAnimal.LIBRE, 1L, "alyssia", 18, null, Instant.parse("2026-01-01T10:00:00Z"));
+                EtatAnimal.LIBRE, 1L, "alyssia",
+                new BigDecimal("230.00"), new BigDecimal("207.00"),
+                Production.LAIT, "litres de lait", 18, new BigDecimal("27.00"),
+                12, 100, true, 0L, Instant.parse("2026-01-01T10:00:00Z"));
     }
 
     @Test
@@ -52,7 +57,9 @@ class AnimalControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].nom").value("emily"))
                 .andExpect(jsonPath("$[0].espece").value("VACHE"))
-                .andExpect(jsonPath("$[0].litresDeLaitParJour").value(18));
+                .andExpect(jsonPath("$[0].quantiteProduction").value(18))
+                .andExpect(jsonPath("$[0].prix").value(230.00))
+                .andExpect(jsonPath("$[0].peutEtreRecolte").value(true));
     }
 
     @Test

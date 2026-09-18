@@ -1,8 +1,15 @@
 package laFerme.utils;
 
 import laFerme.model.Animal;
+import laFerme.model.Canard;
+import laFerme.model.Cheval;
+import laFerme.model.Chevre;
+import laFerme.model.Cochon;
 import laFerme.model.Espece;
 import laFerme.model.EtatAnimal;
+import laFerme.model.Lapin;
+import laFerme.model.Mouton;
+import laFerme.model.Oie;
 import laFerme.model.Poule;
 import laFerme.model.Vache;
 import org.springframework.data.jpa.domain.Specification;
@@ -24,6 +31,13 @@ public final class AnimalSpecifications {
         Class<? extends Animal> type = switch (espece) {
             case VACHE -> Vache.class;
             case POULE -> Poule.class;
+            case MOUTON -> Mouton.class;
+            case CHEVRE -> Chevre.class;
+            case COCHON -> Cochon.class;
+            case CANARD -> Canard.class;
+            case LAPIN -> Lapin.class;
+            case CHEVAL -> Cheval.class;
+            case OIE -> Oie.class;
         };
         return (racine, requete, cb) -> cb.equal(racine.type(), cb.literal(type));
     }

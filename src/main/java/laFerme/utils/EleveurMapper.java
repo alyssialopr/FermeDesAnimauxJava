@@ -17,11 +17,13 @@ public final class EleveurMapper {
                 .sorted(Comparator.comparing(animal -> animal.getNom().toLowerCase()))
                 .map(AnimalMapper::versReponse)
                 .toList();
-        return new EleveurResponse(eleveur.getId(), eleveur.getPrenom(), animaux.size(), animaux);
+        return new EleveurResponse(eleveur.getId(), eleveur.getPrenom(), eleveur.getSolde(),
+                eleveur.fortune(), animaux.size(), animaux);
     }
 
     /** Variante sans le troupeau, pour les listes. */
     public static EleveurResponse versResume(Eleveur eleveur) {
-        return new EleveurResponse(eleveur.getId(), eleveur.getPrenom(), eleveur.getAnimaux().size(), null);
+        return new EleveurResponse(eleveur.getId(), eleveur.getPrenom(), eleveur.getSolde(),
+                eleveur.fortune(), eleveur.getAnimaux().size(), null);
     }
 }

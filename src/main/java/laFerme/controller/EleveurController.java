@@ -10,9 +10,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import laFerme.dto.ActionResponse;
+import laFerme.dto.ClassementResponse;
 import laFerme.dto.CreerEleveurRequest;
 import laFerme.dto.EleveurResponse;
 import laFerme.dto.ErreurApi;
+import laFerme.dto.MouvementResponse;
 import laFerme.services.EleveurService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -99,6 +101,25 @@ public class EleveurController {
     @ApiResponse(responseCode = "200", description = "Eleveurs de la ferme, tries par prenom")
     public List<EleveurResponse> recupereEleveurs() {
         return eleveurService.lister();
+    }
+
+    @GetMapping("/classement")
+    @Operation(summary = "Classer les eleveurs par fortune",
+            description = "La fortune, c'est l'argent en caisse plus la valeur de revente du troupeau.")
+    @ApiResponse(responseCode = "200", description = "Classement, du plus riche au plus pauvre")
+    public List<ClassementResponse> recupereClassement() {
+        return eleveurService.classement();
+    }
+
+    @GetMapping("/{id}/mouvements")
+    @Operation(summary = "Consulter le releve de compte d'un eleveur",
+            description = """
+                    Les 50 dernieres operations (achats, ventes, repas, soins, recoltes, \
+                    promenades), de la plus recente a la plus ancienne.""")
+    @ApiResponse(responseCode = "200", description = "Releve de compte")
+    public List<MouvementResponse> recupereMouvements(
+            @Parameter(description = "Identifiant de l'eleveur", example = "1") @PathVariable Long id) {
+        return eleveurService.mouvements(id);
     }
 
     @GetMapping("/{id}")

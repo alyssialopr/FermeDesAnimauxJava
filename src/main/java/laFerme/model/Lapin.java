@@ -5,19 +5,19 @@ import jakarta.persistence.Entity;
 import lombok.NoArgsConstructor;
 
 /**
- * Elle pond regulierement.
+ * Sa portee de lapereaux se vend bien.
  */
 @Entity
-@DiscriminatorValue("POULE")
+@DiscriminatorValue("LAPIN")
 @NoArgsConstructor
-public class Poule extends Animal {
+public class Lapin extends Animal {
 
-    public Poule(String nom, String race, String couleur, String enclos) {
+    public Lapin(String nom, String race, String couleur, String enclos) {
         super(nom, race, couleur, enclos);
     }
 
     @Override
     public Espece getEspece() {
-        return Espece.POULE;
+        return Espece.LAPIN;
     }
 }

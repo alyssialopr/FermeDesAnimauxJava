@@ -8,15 +8,16 @@ import jakarta.validation.constraints.Size;
 import laFerme.model.Espece;
 
 /**
- * Creation d'un animal. L'eleveur est optionnel : un animal peut arriver a la ferme
- * avant d'etre achete par quelqu'un.
+ * Creation d'un animal. L'eleveur est optionnel : sans lui, l'animal arrive au
+ * marche et attend un acheteur. Avec lui, l'animal est achete dans la foulee et
+ * son prix est debite.
  */
 @Schema(name = "CreerAnimalRequest", description = "Animal a faire entrer a la ferme")
 public record CreerAnimalRequest(
 
-        @Schema(description = "Espece de l'animal, elle determine son comportement et sa production",
+        @Schema(description = "Espece de l'animal : elle fixe sa production, ses tarifs et son appetit",
                 example = "VACHE", requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotNull(message = "l'espece est obligatoire (VACHE ou POULE)")
+        @NotNull(message = "l'espece est obligatoire")
         Espece espece,
 
         @Schema(description = "Nom de l'animal", example = "emily",
@@ -43,17 +44,13 @@ public record CreerAnimalRequest(
         @Size(max = 255)
         String enclos,
 
-        @Schema(description = "Production laitiere quotidienne. Vaches uniquement, 18 par defaut",
-                example = "22")
-        @Min(value = 0, message = "la production laitiere ne peut pas etre negative")
-        Integer litresDeLaitParJour,
+        @Schema(description = "Quantite rendue a chaque recolte. Par defaut, celle de l'espece",
+                example = "18")
+        @Min(value = 0, message = "la production ne peut pas etre negative")
+        Integer quantiteProduction,
 
-        @Schema(description = "Ponte hebdomadaire. Poules uniquement, 5 par defaut", example = "6")
-        @Min(value = 0, message = "le nombre d'oeufs ne peut pas etre negatif")
-        Integer oeufsParSemaine,
-
-        @Schema(description = "Eleveur qui achete l'animal des son arrivee. Optionnel : sans lui, "
-                + "l'animal reste sans proprietaire jusqu'a un achat", example = "1")
+        @Schema(description = "Eleveur qui achete l'animal des son arrivee. Son prix lui est debite. "
+                + "Sans lui, l'animal attend au marche", example = "1")
         Long eleveurId
 ) {
 }

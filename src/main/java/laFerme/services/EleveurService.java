@@ -1,29 +1,38 @@
 package laFerme.services;
 
 import laFerme.dto.ActionResponse;
+import laFerme.dto.ClassementResponse;
 import laFerme.dto.CreerEleveurRequest;
 import laFerme.dto.EleveurResponse;
+import laFerme.dto.MouvementResponse;
 import laFerme.exception.ActionImpossibleException;
 import laFerme.exception.RessourceIntrouvableException;
 import laFerme.model.Animal;
 import laFerme.model.Eleveur;
+import laFerme.model.Mouvement;
+import laFerme.model.ResultatAction;
 import laFerme.repository.AnimalRepository;
 import laFerme.repository.EleveurRepository;
+import laFerme.repository.MouvementRepository;
 import laFerme.utils.AnimalMapper;
 import laFerme.utils.EleveurMapper;
+import laFerme.utils.MouvementMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.stream.IntStream;
 
 /**
  * Orchestration des actions de l'eleveur. Les regles metier restent dans les entites
- * ({@link Eleveur} et {@link Animal}), ce service se charge du chargement et de la
- * transaction.
+ * ({@link Eleveur} et {@link Animal}), ce service se charge du chargement, de la
+ * transaction et de l'enregistrement des mouvements d'argent.
  */
 @Service
 @RequiredArgsConstructor
@@ -31,8 +40,11 @@ import java.util.function.BiFunction;
 @Transactional(readOnly = true)
 public class EleveurService {
 
+    private static final int MOUVEMENTS_AFFICHES = 50;
+
     private final EleveurRepository eleveurRepository;
     private final AnimalRepository animalRepository;
+    private final MouvementRepository mouvementRepository;
 
     public List<EleveurResponse> lister() {
         return eleveurRepository.findAll().stream()
@@ -42,9 +54,33 @@ public class EleveurService {
     }
 
     public EleveurResponse recupereParId(Long id) {
-        Eleveur eleveur = eleveurRepository.findWithAnimauxById(id)
-                .orElseThrow(() -> new RessourceIntrouvableException("Eleveur", id));
-        return EleveurMapper.versReponse(eleveur);
+        return EleveurMapper.versReponse(exigerEleveurAvecTroupeau(id));
+    }
+
+    /** Classement par fortune : argent en caisse plus valeur de revente du troupeau. */
+    public List<ClassementResponse> classement() {
+        List<Eleveur> eleveurs = eleveurRepository.findAll().stream()
+                .sorted(Comparator.comparing(Eleveur::fortune).reversed())
+                .toList();
+
+        return IntStream.range(0, eleveurs.size())
+                .mapToObj(rang -> {
+                    Eleveur eleveur = eleveurs.get(rang);
+                    BigDecimal troupeau = eleveur.fortune().subtract(eleveur.getSolde());
+                    return new ClassementResponse(rang + 1, eleveur.getId(), eleveur.getPrenom(),
+                            eleveur.getSolde(), troupeau, eleveur.fortune(), eleveur.getAnimaux().size());
+                })
+                .toList();
+    }
+
+    /** Releve de compte : toutes les operations, du plus recent au plus ancien. */
+    public List<MouvementResponse> mouvements(Long eleveurId) {
+        exigerEleveur(eleveurId);
+        return mouvementRepository
+                .findByEleveurIdOrderByHorodatageDesc(eleveurId, Limit.of(MOUVEMENTS_AFFICHES))
+                .stream()
+                .map(MouvementMapper::versReponse)
+                .toList();
     }
 
     @Transactional
@@ -60,8 +96,7 @@ public class EleveurService {
 
     @Transactional
     public void supprimer(Long id) {
-        Eleveur eleveur = eleveurRepository.findWithAnimauxById(id)
-                .orElseThrow(() -> new RessourceIntrouvableException("Eleveur", id));
+        Eleveur eleveur = exigerEleveurAvecTroupeau(id);
         if (!eleveur.getAnimaux().isEmpty()) {
             throw new ActionImpossibleException(
                     "%s possede encore %d animal(aux) : vendez-les avant de le supprimer."
@@ -77,11 +112,7 @@ public class EleveurService {
 
     @Transactional
     public ActionResponse acheter(Long eleveurId, Long animalId) {
-        Eleveur eleveur = exigerEleveur(eleveurId);
-        Animal animal = exigerAnimal(animalId);
-        eleveur.acheter(animal);
-        String message = "%s a achete %s.".formatted(eleveur.getPrenom(), animal.designation().toLowerCase());
-        return tracer(message, animal);
+        return agir(eleveurId, animalId, Eleveur::acheter);
     }
 
     @Transactional
@@ -109,19 +140,35 @@ public class EleveurService {
         return agir(eleveurId, animalId, Eleveur::recolter);
     }
 
-    private ActionResponse agir(Long eleveurId, Long animalId, BiFunction<Eleveur, Animal, String> action) {
+    private ActionResponse agir(Long eleveurId, Long animalId,
+                                BiFunction<Eleveur, Animal, ResultatAction> action) {
         Eleveur eleveur = exigerEleveur(eleveurId);
         Animal animal = exigerAnimal(animalId);
-        return tracer(action.apply(eleveur, animal), animal);
+
+        ResultatAction resultat = action.apply(eleveur, animal);
+        enregistrer(eleveur, animal, resultat);
+
+        log.info("{} (solde : {} €)", resultat.message(), eleveur.getSolde());
+        return new ActionResponse(resultat.message(), resultat.montant(), eleveur.getSolde(),
+                AnimalMapper.versReponse(animal));
     }
 
-    private ActionResponse tracer(String message, Animal animal) {
-        log.info(message);
-        return new ActionResponse(message, AnimalMapper.versReponse(animal));
+    /** Une action qui bouge de l'argent laisse une trace dans le releve. */
+    private void enregistrer(Eleveur eleveur, Animal animal, ResultatAction resultat) {
+        if (resultat.montant().signum() == 0) {
+            return;
+        }
+        mouvementRepository.save(new Mouvement(eleveur, animal.getId(), resultat.type(),
+                resultat.montant(), resultat.message()));
     }
 
     private Eleveur exigerEleveur(Long id) {
         return eleveurRepository.findById(id)
+                .orElseThrow(() -> new RessourceIntrouvableException("Eleveur", id));
+    }
+
+    private Eleveur exigerEleveurAvecTroupeau(Long id) {
+        return eleveurRepository.findWithAnimauxById(id)
                 .orElseThrow(() -> new RessourceIntrouvableException("Eleveur", id));
     }
 

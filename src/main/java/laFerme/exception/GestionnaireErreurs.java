@@ -32,6 +32,11 @@ public class GestionnaireErreurs {
         return probleme(HttpStatus.CONFLICT, "Animal non possede", exception.getMessage(), requete);
     }
 
+    @ExceptionHandler(FondsInsuffisantsException.class)
+    ProblemDetail fondsInsuffisants(FondsInsuffisantsException exception, HttpServletRequest requete) {
+        return probleme(HttpStatus.CONFLICT, "Fonds insuffisants", exception.getMessage(), requete);
+    }
+
     @ExceptionHandler(ActionImpossibleException.class)
     ProblemDetail actionImpossible(ActionImpossibleException exception, HttpServletRequest requete) {
         return probleme(HttpStatus.CONFLICT, "Action impossible", exception.getMessage(), requete);

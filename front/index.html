@@ -107,7 +107,8 @@
           Je l'achète tout de suite
         </label>
         <div class="modale__actions">
-          <button value="annuler" class="bouton bouton--discret">Annuler</button>
+          <!-- formnovalidate : sans lui, les champs requis bloquent la fermeture -->
+          <button value="annuler" formnovalidate class="bouton bouton--discret">Annuler</button>
           <button value="creer" class="bouton">Faire entrer</button>
         </div>
       </form>
@@ -118,7 +119,8 @@
         <h2>Nouvel éleveur</h2>
         <label class="champ">Prénom<input name="prenom" required maxlength="40" placeholder="camille" /></label>
         <div class="modale__actions">
-          <button value="annuler" class="bouton bouton--discret">Annuler</button>
+          <!-- formnovalidate : sans lui, les champs requis bloquent la fermeture -->
+          <button value="annuler" formnovalidate class="bouton bouton--discret">Annuler</button>
           <button value="creer" class="bouton">Créer</button>
         </div>
       </form>

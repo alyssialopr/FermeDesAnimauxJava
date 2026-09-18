@@ -8,8 +8,11 @@ import laFerme.model.Animal;
 import laFerme.model.Eleveur;
 import laFerme.model.Espece;
 import laFerme.model.EtatAnimal;
+import laFerme.model.Mouvement;
+import laFerme.model.ResultatAction;
 import laFerme.repository.AnimalRepository;
 import laFerme.repository.EleveurRepository;
+import laFerme.repository.MouvementRepository;
 import laFerme.utils.AnimalMapper;
 import laFerme.utils.AnimalSpecifications;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +32,7 @@ public class AnimalService {
 
     private final AnimalRepository animalRepository;
     private final EleveurRepository eleveurRepository;
+    private final MouvementRepository mouvementRepository;
 
     public List<AnimalResponse> lister(Espece espece, EtatAnimal etat, Long eleveurId, String enclos) {
         Specification<Animal> criteres = Specification.allOf(
@@ -46,19 +50,25 @@ public class AnimalService {
         return AnimalMapper.versReponse(exigerAnimal(id));
     }
 
+    /**
+     * Fait entrer un animal a la ferme. Avec un eleveur, il est achete dans la foulee :
+     * son prix est debite et l'operation echoue en bloc si la caisse ne suit pas.
+     */
     @Transactional
     public AnimalResponse creer(CreerAnimalRequest requete) {
-        Animal animal = AnimalMapper.versEntite(requete);
+        Animal animal = animalRepository.save(AnimalMapper.versEntite(requete));
 
         if (requete.eleveurId() != null) {
             Eleveur eleveur = eleveurRepository.findById(requete.eleveurId())
                     .orElseThrow(() -> new RessourceIntrouvableException("Eleveur", requete.eleveurId()));
-            eleveur.acheter(animal);
+
+            ResultatAction achat = eleveur.acheter(animal);
+            mouvementRepository.save(new Mouvement(eleveur, animal.getId(), achat.type(),
+                    achat.montant(), achat.message()));
         }
 
-        Animal enregistre = animalRepository.save(animal);
-        log.info("Nouvel animal a la ferme : {}", enregistre);
-        return AnimalMapper.versReponse(enregistre);
+        log.info("Nouvel animal a la ferme : {} ({} €)", animal, animal.getPrix());
+        return AnimalMapper.versReponse(animal);
     }
 
     @Transactional
