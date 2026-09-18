@@ -48,9 +48,10 @@
 			<version>${springdoc.version}</version>
 		</dependency>
 
+		<!-- Spring Boot 4 distribue l'auto-configuration Flyway dans son propre starter. -->
 		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-core</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
 		</dependency>
 
 		<dependency>

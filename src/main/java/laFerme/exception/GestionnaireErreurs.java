@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -64,8 +65,8 @@ public class GestionnaireErreurs {
     private ProblemDetail probleme(HttpStatus statut, String titre, String detailMessage, HttpServletRequest requete) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(statut, detailMessage);
         detail.setTitle(titre);
+        detail.setInstance(URI.create(requete.getRequestURI()));
         detail.setProperty("horodatage", Instant.now());
-        detail.setProperty("chemin", requete.getRequestURI());
         return detail;
     }
 }
