@@ -1,52 +1,42 @@
 package laFerme.model;
 
-public class Poule implements Animal{
-    private static int CPT = 1;
+import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-    int id;
-    String nom;
-    String race;
-    String couleur;
-    String enclos;
-    EtatAnimal etat = EtatAnimal.LIBRE;
+@Entity
+@DiscriminatorValue("POULE")
+@Getter
+@Setter
+@NoArgsConstructor
+public class Poule extends Animal {
+
+    private static final int OEUFS_PAR_DEFAUT = 5;
+
+    /** Nombre d'oeufs pondus par semaine. */
+    @Column(name = "oeufs_par_semaine")
+    private Integer oeufsParSemaine = OEUFS_PAR_DEFAUT;
 
     public Poule(String nom, String race, String couleur, String enclos) {
-        this.id = CPT++;
-        this.nom = nom;
-        this.race = race;
-        this.couleur = couleur;
-        this.enclos = enclos;
-    }
-    public void acheter(){
-        setEtat(EtatAnimal.LIBRE);
+        super(nom, race, couleur, enclos);
     }
 
-    public void vendre(){
-        setEtat(EtatAnimal.VENDU);
+    @Override
+    public Espece getEspece() {
+        return Espece.POULE;
     }
 
-    public void nourrir(){
-        System.out.println("La poule " + nom + " a été nourrie.");
+    @Override
+    public String designation() {
+        return "La poule " + getNom();
     }
 
-    public void soigner(){
-        System.out.println("La poule " +nom + " a été soignée.");
+    @Override
+    public String produire() {
+        int oeufs = oeufsParSemaine == null ? OEUFS_PAR_DEFAUT : oeufsParSemaine;
+        return "%s a pondu %d oeufs cette semaine.".formatted(designation(), oeufs);
     }
-
-    public void allerEnBalade(){
-        System.out.println("La poule " +nom + " part en balade.");
-    }
-
-    public EtatAnimal getEtat() {
-        return etat;
-    }
-
-    public void setEtat(EtatAnimal etat){
-        this.etat = etat;
-    }
-
-    public void setEnclos(String enclos) {
-        this.enclos = enclos;
-    }
-
 }
