@@ -1,5 +1,11 @@
 name: ferme-des-animaux
 
+# Durcissement applique aux trois services :
+#   - no-new-privileges : un processus ne peut pas gagner de droits en cours de route
+#   - cap_drop ALL      : aucune capacite Linux au-dela du strict minimum
+#   - limites memoire   : un conteneur ne peut pas asphyxier la machine
+#   - seule l'interface locale est exposee, jamais 0.0.0.0
+
 services:
 
   db:
@@ -10,8 +16,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-ferme}
       POSTGRES_USER: ${POSTGRES_USER:-ferme}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD dans le fichier .env}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # Authentification par mot de passe hache, pas de "trust".
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    # La base n'est pas publiee sur l'hote : seule l'API y accede, par le reseau
+    # interne de compose. Pour l'inspecter, decommenter en developpement.
+    # ports:
+    #   - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - ferme-db:/var/lib/postgresql/data
     healthcheck:
@@ -19,6 +30,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # Postgres doit passer de root a l'utilisateur postgres au demarrage.
+      - CHOWN
+      - DAC_READ_SEARCH
+      - FOWNER
+      - SETGID
+      - SETUID
+    mem_limit: 512m
+    pids_limit: 200
 
   api:
     build:
@@ -35,7 +59,16 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?definir POSTGRES_PASSWORD dans le fichier .env}
       FERME_DONNEES_DEMO: ${FERME_DONNEES_DEMO:-true}
     ports:
-      - "${API_PORT:-8080}:8080"
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    mem_limit: 768m
+    pids_limit: 200
 
   # Le jeu : bundle Three.js servi par nginx, qui relaie aussi /api vers l'API.
   web:
@@ -47,13 +80,25 @@ services:
     depends_on:
       - api
     ports:
-      - "${WEB_PORT:-3000}:80"
+      - "127.0.0.1:${WEB_PORT:-3000}:80"
     volumes:
       # La doc hors-ligne, lisible aussi depuis le jeu. Seuls ces deux fichiers
       # sont montes : monter tout docs/ publierait le generateur, les fichiers
       # npm et node_modules sur le web.
       - ./docs/api.html:/usr/share/nginx/doc/api.html:ro
       - ./docs/openapi.json:/usr/share/nginx/doc/openapi.json:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      # nginx demarre en root pour ecouter sur le port 80 puis descend en nginx.
+      - CHOWN
+      - SETGID
+      - SETUID
+      - NET_BIND_SERVICE
+    mem_limit: 256m
+    pids_limit: 100
 
 volumes:
   ferme-db:

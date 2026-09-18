@@ -20,4 +20,14 @@ public class Mouton extends Animal {
     public Espece getEspece() {
         return Espece.MOUTON;
     }
+
+    @Override
+    public String cri() {
+        return "Bêê !";
+    }
+
+    @Override
+    protected String messageRecolte() {
+        return "%s a ete tondu : %s.".formatted(designation(), production());
+    }
 }

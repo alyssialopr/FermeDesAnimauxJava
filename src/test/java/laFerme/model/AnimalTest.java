@@ -198,7 +198,7 @@ class AnimalTest {
             Cochon babe = affameDepuis(new Cochon("babe", "Large White", "rousse", "6"), 10);
             BigDecimal avant = babe.getPrix();
 
-            assertThat(babe.nourrir()).contains("prend de la valeur");
+            assertThat(babe.nourrir()).contains("il vaut maintenant");
             assertThat(babe.getPrix()).isEqualByComparingTo(avant.add(Espece.COCHON.getGainParRepas()));
         }
 

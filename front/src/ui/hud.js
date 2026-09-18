@@ -73,6 +73,9 @@ export class Hud {
       formulaireAnimal: document.getElementById('formulaire-animal'),
       modaleEleveur: document.getElementById('modale-eleveur'),
       formulaireEleveur: document.getElementById('formulaire-eleveur'),
+      modaleCle: document.getElementById('modale-cle'),
+      formulaireCle: document.getElementById('formulaire-cle'),
+      explicationCle: document.getElementById('cle-explication'),
       modaleAide: document.getElementById('modale-aide'),
       fermerAide: document.getElementById('fermer-aide'),
       especeAnimal: document.getElementById('animal-espece'),
@@ -481,6 +484,26 @@ export class Hud {
         });
         formulaireAnimal.reset();
         this.majResumeEspece();
+      }, { once: true });
+    });
+  }
+
+  /** Demande la cle d'un eleveur ; renvoie null si l'utilisateur renonce. */
+  demanderCle(prenom) {
+    return new Promise((resoudre) => {
+      const { modaleCle, formulaireCle, explicationCle } = this.elements;
+      explicationCle.textContent =
+        `Les actions de ${prenom} sont protégées par une clé. Colle-la pour jouer avec cet éleveur.`;
+      modaleCle.showModal();
+
+      modaleCle.addEventListener('close', () => {
+        if (modaleCle.returnValue !== 'valider') {
+          resoudre(null);
+          return;
+        }
+        const donnees = Object.fromEntries(new FormData(formulaireCle));
+        resoudre(String(donnees.cle).trim());
+        formulaireCle.reset();
       }, { once: true });
     });
   }

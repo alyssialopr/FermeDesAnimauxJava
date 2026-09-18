@@ -20,4 +20,14 @@ public class Lapin extends Animal {
     public Espece getEspece() {
         return Espece.LAPIN;
     }
+
+    @Override
+    public String cri() {
+        return "Couic !";
+    }
+
+    @Override
+    protected String messageRecolte() {
+        return "%s a eu une portee de %s.".formatted(designation(), production());
+    }
 }

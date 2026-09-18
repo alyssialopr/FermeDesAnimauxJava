@@ -12,12 +12,14 @@ import jakarta.validation.Valid;
 import laFerme.dto.ActionResponse;
 import laFerme.dto.ClassementResponse;
 import laFerme.dto.CreerEleveurRequest;
+import laFerme.dto.EleveurCreeResponse;
 import laFerme.dto.EleveurResponse;
 import laFerme.dto.ErreurApi;
 import laFerme.dto.MouvementResponse;
 import laFerme.services.EleveurService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -88,11 +90,16 @@ public class EleveurController {
     private final EleveurService eleveurService;
 
     @PostMapping
-    @Operation(summary = "Creer un eleveur", description = "Le prenom doit etre unique a la ferme.")
-    @ApiResponse(responseCode = "201", description = "Eleveur cree, son adresse est dans l'en-tete Location")
-    public ResponseEntity<EleveurResponse> creerEleveur(@Valid @RequestBody CreerEleveurRequest requete) {
-        EleveurResponse eleveur = eleveurService.creer(requete);
-        return ResponseEntity.created(URI.create("/api/eleveurs/" + eleveur.id())).body(eleveur);
+    @Operation(summary = "Creer un eleveur",
+            description = """
+                    Le prenom doit etre unique a la ferme. La reponse contient la **cle \
+                    d'acces** de l'eleveur : c'est la seule fois qu'elle est renvoyee, le \
+                    serveur n'en garde qu'une empreinte BCrypt. Elle sert ensuite a \
+                    s'authentifier (`Authorization: Bearer <id>.<cle>`).""")
+    @ApiResponse(responseCode = "201", description = "Eleveur cree, avec sa cle d'acces")
+    public ResponseEntity<EleveurCreeResponse> creerEleveur(@Valid @RequestBody CreerEleveurRequest requete) {
+        EleveurCreeResponse cree = eleveurService.creer(requete);
+        return ResponseEntity.created(URI.create("/api/eleveurs/" + cree.eleveur().id())).body(cree);
     }
 
     @GetMapping
@@ -112,6 +119,7 @@ public class EleveurController {
     }
 
     @GetMapping("/{id}/mouvements")
+    @PreAuthorize("@securite.estEleveur(#id)")
     @Operation(summary = "Consulter le releve de compte d'un eleveur",
             description = """
                     Les 50 dernieres operations (achats, ventes, repas, soins, recoltes, \
@@ -131,6 +139,7 @@ public class EleveurController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@securite.estEleveur(#id)")
     @Operation(summary = "Supprimer un eleveur",
             description = "Refuse tant que l'eleveur possede des animaux : il faut d'abord les vendre.")
     @ApiResponse(responseCode = "204", description = "Eleveur supprime", content = @Content)
@@ -145,6 +154,7 @@ public class EleveurController {
     // -----------------------------------------------------------------
 
     @PostMapping("/{eleveurId}/animaux/{animalId}/achat")
+    @PreAuthorize("@securite.estEleveur(#eleveurId)")
     @Operation(summary = "Acheter un animal",
             description = """
                     Rattache l'animal a l'eleveur et le remet a l'etat `LIBRE`. Refuse si \
@@ -160,6 +170,7 @@ public class EleveurController {
     }
 
     @PostMapping("/{eleveurId}/animaux/{animalId}/vente")
+    @PreAuthorize("@securite.estEleveur(#eleveurId)")
     @Operation(summary = "Vendre un de ses animaux",
             description = "L'animal passe a l'etat `VENDU` et quitte le troupeau.")
     @ApiResponse(responseCode = "200", description = "Animal vendu",
@@ -173,6 +184,7 @@ public class EleveurController {
     }
 
     @PostMapping("/{eleveurId}/animaux/{animalId}/repas")
+    @PreAuthorize("@securite.estEleveur(#eleveurId)")
     @Operation(summary = "Nourrir un de ses animaux")
     @ApiResponse(responseCode = "200", description = "Animal nourri",
             content = @Content(schema = @Schema(implementation = ActionResponse.class),
@@ -185,6 +197,7 @@ public class EleveurController {
     }
 
     @PostMapping("/{eleveurId}/animaux/{animalId}/soin")
+    @PreAuthorize("@securite.estEleveur(#eleveurId)")
     @Operation(summary = "Soigner un de ses animaux")
     @ApiResponse(responseCode = "200", description = "Animal soigne",
             content = @Content(schema = @Schema(implementation = ActionResponse.class),
@@ -197,6 +210,7 @@ public class EleveurController {
     }
 
     @PostMapping("/{eleveurId}/animaux/{animalId}/balade")
+    @PreAuthorize("@securite.estEleveur(#eleveurId)")
     @Operation(summary = "Emmener un de ses animaux en balade")
     @ApiResponse(responseCode = "200", description = "Animal parti en balade",
             content = @Content(schema = @Schema(implementation = ActionResponse.class),
@@ -209,6 +223,7 @@ public class EleveurController {
     }
 
     @PostMapping("/{eleveurId}/animaux/{animalId}/recolte")
+    @PreAuthorize("@securite.estEleveur(#eleveurId)")
     @Operation(summary = "Recolter la production d'un de ses animaux",
             description = "Du lait pour une vache, des oeufs pour une poule.")
     @ApiResponse(responseCode = "200", description = "Production recoltee",

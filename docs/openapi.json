@@ -823,7 +823,7 @@
         ]
       },
       "post": {
-        "description": "Le prenom doit etre unique a la ferme.",
+        "description": "Le prenom doit etre unique a la ferme. La reponse contient la **cle d'acces** de l'eleveur : c'est la seule fois qu'elle est renvoyee, le serveur n'en garde qu'une empreinte BCrypt. Elle sert ensuite a s'authentifier (`Authorization: Bearer <id>.<cle>`).",
         "operationId": "creerEleveur",
         "requestBody": {
           "content": {
@@ -840,11 +840,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EleveurResponse"
+                  "$ref": "#/components/schemas/EleveurCreeResponse"
                 }
               }
             },
-            "description": "Eleveur cree, son adresse est dans l'en-tete Location"
+            "description": "Eleveur cree, avec sa cle d'acces"
           },
           "400": {
             "content": {
@@ -2228,6 +2228,11 @@
             "description": "Date d'arrivee a la ferme",
             "example": "2026-09-18T07:26:51.173Z"
           },
+          "cri": {
+            "type": "string",
+            "description": "Le cri de l'espece",
+            "example": "Meuh !"
+          },
           "eleveurId": {
             "type": "integer",
             "format": "int64",
@@ -2403,8 +2408,9 @@
             "type": "string",
             "description": "Couleur de la robe ou du plumage",
             "example": "marron",
-            "maxLength": 255,
-            "minLength": 0
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[\\p{L}\\p{N} '\\-]+"
           },
           "eleveurId": {
             "type": "integer",
@@ -2416,8 +2422,9 @@
             "type": "string",
             "description": "Enclos dans lequel l'animal est installe",
             "example": "1",
-            "maxLength": 255,
-            "minLength": 0
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[\\p{L}\\p{N} '\\-]+"
           },
           "espece": {
             "type": "string",
@@ -2439,22 +2446,25 @@
             "type": "string",
             "description": "Nom de l'animal",
             "example": "emily",
-            "maxLength": 255,
-            "minLength": 0
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[\\p{L}\\p{N} '\\-]+"
           },
           "quantiteProduction": {
             "type": "integer",
             "format": "int32",
             "description": "Quantite rendue a chaque recolte. Par defaut, celle de l'espece",
             "example": 18,
+            "maximum": 1000,
             "minimum": 0
           },
           "race": {
             "type": "string",
             "description": "Race de l'animal",
             "example": "Highland",
-            "maxLength": 255,
-            "minLength": 0
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[\\p{L}\\p{N} '\\-]+"
           }
         },
         "required": [
@@ -2473,13 +2483,29 @@
             "type": "string",
             "description": "Prenom de l'eleveur, unique a la ferme (casse ignoree)",
             "example": "alyssia",
-            "maxLength": 255,
-            "minLength": 0
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[\\p{L} '\\-]+"
           }
         },
         "required": [
           "prenom"
         ]
+      },
+      "EleveurCreeResponse": {
+        "type": "object",
+        "description": "Eleveur tout juste cree, avec sa cle d'acces. C'est la seule et unique fois que la cle est renvoyee : le serveur n'en garde qu'une empreinte.",
+        "properties": {
+          "cle": {
+            "type": "string",
+            "description": "Cle d'acces, a conserver : elle autorise toutes les actions au nom de cet eleveur (en-tete Authorization: Bearer <id>.<cle>)",
+            "example": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+          },
+          "eleveur": {
+            "$ref": "#/components/schemas/EleveurResponse",
+            "description": "L'eleveur cree"
+          }
+        }
       },
       "EleveurResponse": {
         "type": "object",
@@ -2665,8 +2691,9 @@
             "type": "string",
             "description": "Enclos de destination",
             "example": "7",
-            "maxLength": 255,
-            "minLength": 0
+            "maxLength": 40,
+            "minLength": 0,
+            "pattern": "[\\p{L}\\p{N} '\\-]+"
           }
         },
         "required": [

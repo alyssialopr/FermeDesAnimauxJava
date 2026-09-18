@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -76,18 +77,21 @@ class FermeApplicationTests {
     @Test
     @DisplayName("parcours complet : creation, achat, repas, recolte, vente, releve de compte")
     void parcoursComplet() throws Exception {
-        String eleveur = mockMvc.perform(post("/api/eleveurs")
+        String reponse = mockMvc.perform(post("/api/eleveurs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"prenom":"mathilde"}"""))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.prenom").value("mathilde"))
-                .andExpect(jsonPath("$.solde").value(300.00))
+                .andExpect(jsonPath("$.eleveur.prenom").value("mathilde"))
+                .andExpect(jsonPath("$.eleveur.solde").value(300.00))
+                .andExpect(jsonPath("$.cle").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();
-        long eleveurId = extraireId(eleveur);
+        long eleveurId = extraireId(reponse);
+        String jeton = jeton(eleveurId, extraireCle(reponse));
 
         // Achetee a l'arrivee : le prix de la chevre est debite.
         String animal = mockMvc.perform(post("/api/animaux")
+                        .header(HttpHeaders.AUTHORIZATION, jeton)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"espece":"CHEVRE","nom":"biquette","race":"Alpine","couleur":"marron",
@@ -104,7 +108,8 @@ class FermeApplicationTests {
                 .andExpect(jsonPath("$.solde").value(240.00));
 
         // 4 litres a 1.80 € : la recolte rapporte 7.20 €.
-        mockMvc.perform(post("/api/eleveurs/%d/animaux/%d/recolte".formatted(eleveurId, animalId)))
+        mockMvc.perform(post("/api/eleveurs/%d/animaux/%d/recolte".formatted(eleveurId, animalId))
+                        .header(HttpHeaders.AUTHORIZATION, jeton))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value(
                         "La chevre biquette a donne 4 litres de lait. Vendu 7.20 €."))
@@ -113,11 +118,13 @@ class FermeApplicationTests {
                 .andExpect(jsonPath("$.animal.sante").value(92));
 
         // Deuxieme recolte refusee : il faut attendre.
-        mockMvc.perform(post("/api/eleveurs/%d/animaux/%d/recolte".formatted(eleveurId, animalId)))
+        mockMvc.perform(post("/api/eleveurs/%d/animaux/%d/recolte".formatted(eleveurId, animalId))
+                        .header(HttpHeaders.AUTHORIZATION, jeton))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("revenez dans")));
 
-        mockMvc.perform(post("/api/eleveurs/%d/animaux/%d/vente".formatted(eleveurId, animalId)))
+        mockMvc.perform(post("/api/eleveurs/%d/animaux/%d/vente".formatted(eleveurId, animalId))
+                        .header(HttpHeaders.AUTHORIZATION, jeton))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.animal.etat").value("VENDU"))
                 .andExpect(jsonPath("$.montant").value(54.00))
@@ -137,7 +144,8 @@ class FermeApplicationTests {
                         .isEqualByComparingTo(new BigDecimal("301.20")));
 
         // Le releve de compte garde la trace des trois operations.
-        mockMvc.perform(get("/api/eleveurs/%d/mouvements".formatted(eleveurId)))
+        mockMvc.perform(get("/api/eleveurs/%d/mouvements".formatted(eleveurId))
+                        .header(HttpHeaders.AUTHORIZATION, jeton))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3))
                 .andExpect(jsonPath("$[0].type").value("VENTE"))
@@ -149,15 +157,17 @@ class FermeApplicationTests {
     @Test
     @DisplayName("on n'achete pas au-dessus de ses moyens, et rien n'est cree au passage")
     void fondsInsuffisants() throws Exception {
-        long eleveurId = extraireId(mockMvc.perform(post("/api/eleveurs")
+        String reponse = mockMvc.perform(post("/api/eleveurs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"prenom":"hugo"}"""))
-                .andReturn().getResponse().getContentAsString());
+                .andReturn().getResponse().getContentAsString();
+        long eleveurId = extraireId(reponse);
 
         long avant = animalRepository.count();
 
         mockMvc.perform(post("/api/animaux")
+                        .header(HttpHeaders.AUTHORIZATION, jeton(eleveurId, extraireCle(reponse)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"espece":"CHEVAL","nom":"tonnerre","race":"Comtois","couleur":"marron",
@@ -172,26 +182,38 @@ class FermeApplicationTests {
     @Test
     @DisplayName("un eleveur ne peut pas toucher a l'animal d'un autre, meme en base")
     void proprieteRespecteeEnBase() throws Exception {
-        long premier = extraireId(mockMvc.perform(post("/api/eleveurs")
+        String premierCompte = mockMvc.perform(post("/api/eleveurs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"prenom":"gaspard"}"""))
-                .andReturn().getResponse().getContentAsString());
+                .andReturn().getResponse().getContentAsString();
+        long premier = extraireId(premierCompte);
+        String jetonPremier = jeton(premier, extraireCle(premierCompte));
 
-        long second = extraireId(mockMvc.perform(post("/api/eleveurs")
+        String secondCompte = mockMvc.perform(post("/api/eleveurs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"prenom":"olivia"}"""))
-                .andReturn().getResponse().getContentAsString());
+                .andReturn().getResponse().getContentAsString();
+        long second = extraireId(secondCompte);
+        String jetonSecond = jeton(second, extraireCle(secondCompte));
 
         long poule = extraireId(mockMvc.perform(post("/api/animaux")
+                        .header(HttpHeaders.AUTHORIZATION, jetonPremier)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"espece":"POULE","nom":"cannelle","race":"Marans","couleur":"noire",
                                  "enclos":"5","quantiteProduction":4,"eleveurId":%d}""".formatted(premier)))
                 .andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(post("/api/eleveurs/%d/animaux/%d/soin".formatted(second, poule)))
+        // Olivia s'authentifie bien, mais agit au nom de gaspard : refuse.
+        mockMvc.perform(post("/api/eleveurs/%d/animaux/%d/soin".formatted(premier, poule))
+                        .header(HttpHeaders.AUTHORIZATION, jetonSecond))
+                .andExpect(status().isForbidden());
+
+        // Avec sa propre cle, olivia ne possede simplement pas cet animal.
+        mockMvc.perform(post("/api/eleveurs/%d/animaux/%d/soin".formatted(second, poule))
+                        .header(HttpHeaders.AUTHORIZATION, jetonSecond))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Cet animal ne vous appartient pas"));
 
@@ -230,6 +252,95 @@ class FermeApplicationTests {
                                 {"prenom":"Solene"}"""))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Action impossible"));
+    }
+
+    @Test
+    @DisplayName("sans cle, aucune action n'est possible")
+    void sansCleAucuneAction() throws Exception {
+        String compte = mockMvc.perform(post("/api/eleveurs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"prenom":"leonie"}"""))
+                .andReturn().getResponse().getContentAsString();
+        long eleveurId = extraireId(compte);
+
+        // Lecture : ouverte.
+        mockMvc.perform(get("/api/eleveurs/%d".formatted(eleveurId)))
+                .andExpect(status().isOk());
+
+        // Ecriture : refusee, et l'erreur reste au format de l'API.
+        mockMvc.perform(post("/api/animaux")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"espece":"POULE","nom":"sansfoi","race":"Sussex","couleur":"noire",
+                                 "enclos":"9","eleveurId":%d}""".formatted(eleveurId)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.title").value("Authentification requise"));
+
+        // Le releve de compte est prive.
+        mockMvc.perform(get("/api/eleveurs/%d/mouvements".formatted(eleveurId)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("une mauvaise cle ne passe pas")
+    void mauvaiseCle() throws Exception {
+        String compte = mockMvc.perform(post("/api/eleveurs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"prenom":"victor"}"""))
+                .andReturn().getResponse().getContentAsString();
+        long eleveurId = extraireId(compte);
+
+        mockMvc.perform(get("/api/eleveurs/%d/mouvements".formatted(eleveurId))
+                        .header(HttpHeaders.AUTHORIZATION, jeton(eleveurId, "pas-la-bonne-cle")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("la cle n'est jamais renvoyee apres la creation")
+    void laCleNeFuitPas() throws Exception {
+        String compte = mockMvc.perform(post("/api/eleveurs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"prenom":"norbert"}"""))
+                .andReturn().getResponse().getContentAsString();
+        long eleveurId = extraireId(compte);
+
+        String fiche = mockMvc.perform(get("/api/eleveurs/%d".formatted(eleveurId)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(fiche).doesNotContain("cle").doesNotContain("$2a$");
+    }
+
+    @Test
+    @DisplayName("les entrees farfelues sont refusees avant d'atteindre la base")
+    void entreesRefusees() throws Exception {
+        String compte = mockMvc.perform(post("/api/eleveurs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"prenom":"amelie"}"""))
+                .andReturn().getResponse().getContentAsString();
+        long eleveurId = extraireId(compte);
+
+        mockMvc.perform(post("/api/animaux")
+                        .header(HttpHeaders.AUTHORIZATION, jeton(eleveurId, extraireCle(compte)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"espece":"POULE","nom":"<script>alert(1)</script>","race":"Sussex",
+                                 "couleur":"noire","enclos":"9"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.champs.nom").exists());
+    }
+
+    private String jeton(long eleveurId, String cle) {
+        return "Bearer %d.%s".formatted(eleveurId, cle);
+    }
+
+    private String extraireCle(String json) {
+        int debut = json.indexOf("\"cle\":\"") + 7;
+        return json.substring(debut, json.indexOf('"', debut));
     }
 
     private long extraireId(String json) {

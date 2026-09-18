@@ -106,6 +106,26 @@ Vite sert le jeu sur http://localhost:5173 et relaie `/api` vers `localhost:8080
 Depuis la console du navigateur, `window.ferme` expose l'état du jeu, les objets 3D
 et les actions — pratique pour déboguer ou piloter une partie.
 
+## Sécurité
+
+L'API demande une **clé d'éleveur** pour toute action (`Authorization: Bearer
+<id>.<clé>`) : la lecture est ouverte, l'écriture non. Une clé valide ne permet
+d'agir qu'au nom de son propre éleveur.
+
+```bash
+# Lecture : ouverte
+curl http://localhost:8080/api/animaux
+
+# Action : la clé est obligatoire
+curl -X POST http://localhost:8080/api/eleveurs/1/animaux/1/repas \
+     -H "Authorization: Bearer 1.demo-alyssia"
+```
+
+Le détail de l'audit, des corrections et des vérifications est dans
+**[SECURITE.md](SECURITE.md)** : authentification Spring Security, clés hachées en
+BCrypt, verrous optimistes sur l'argent, limitation de débit, en-têtes de sécurité,
+base non exposée et conteneurs durcis.
+
 ## Documentation de l'API (Swagger)
 
 Deux façons de la consulter :
@@ -234,6 +254,8 @@ src/main/resources/
 ├── application.yml
 └── db/migration/              migrations Flyway
 
+SECURITE.md                    audit de sécurité, corrections et vérifications
+
 docs/                          documentation hors-ligne
 ├── api.html                   Swagger UI + contrat embarqués (ouvrir tel quel)
 ├── openapi.json               le contrat seul
@@ -270,6 +292,24 @@ front/                         le jeu (Three.js + Vite, servi par nginx)
 - une opération qui dépasse la caisse échoue **en bloc** (409, transaction annulée)
 - chaque mouvement d'argent laisse une ligne dans le **relevé de compte**
 
+### Polymorphisme
+
+Les actions de l'`Animal` sont des **méthodes gabarit** : les règles communes
+(disponibilité, faim, santé, délais) sont dans la classe abstraite, et chaque
+espèce redéfinit ce qui la distingue.
+
+| Méthode redéfinie | Ce qu'en fait l'espèce |
+|---|---|
+| `cri()` | « Meuh ! », « Cot cot codec ! », « Groin groin ! », « Hiiiii ! »… |
+| `messageRecolte()` | la vache **donne** du lait, la poule **pond**, le mouton **se fait tondre**, la lapine **a une portée** |
+| `effetDuRepas()` | le **cochon** grossit et prend de la valeur, les autres sont simplement nourris |
+| `effetDeLaBalade()` | le **cheval** emmène des promeneurs, les autres se dégourdissent les pattes |
+| `valeurAjouteeParRepas()` / `recetteDeLaBalade()` | zéro par défaut, redéfini par le cochon et le cheval |
+
+Les espèces qui ne se récoltent pas ne redéfinissent pas `messageRecolte()` :
+elles héritent du refus par défaut. Le service, lui, ne manipule que des
+`Animal` — il ne connaît aucune sous-classe.
+
 ### Ce qui a été amélioré
 
 - `Animal` était une interface : c'est maintenant une **entité abstraite**, ce qui permet
@@ -301,6 +341,7 @@ front/                         le jeu (Three.js + Vite, servi par nginx)
 | Image Docker | multi-étapes, JRE Alpine, utilisateur non root, jar en couches |
 | Secrets | aucun identifiant dans le dépôt, tout passe par l'environnement |
 | Tests | JUnit 5 + AssertJ + Mockito, Testcontainers pour l'intégration |
+| Sécurité | Spring Security (clé d'éleveur, BCrypt), verrous optimistes, nginx (débit, en-têtes) |
 | Front | Three.js (WebGL), Vite, aucune dépendance CDN — tout est dans l'image |
 
 ## Pistes suivantes

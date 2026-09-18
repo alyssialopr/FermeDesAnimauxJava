@@ -9,6 +9,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import laFerme.exception.ActionImpossibleException;
 import laFerme.exception.AnimalNonPossedeException;
 import laFerme.exception.FondsInsuffisantsException;
@@ -45,6 +47,20 @@ public class Eleveur {
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal solde = SOLDE_DE_DEPART;
+
+    /**
+     * Empreinte BCrypt de la cle d'acces. La cle en clair n'est affichee qu'une
+     * fois, a la creation : elle n'est stockee nulle part cote serveur.
+     * Null pour les comptes d'avant l'authentification, qui sont alors bloques.
+     */
+    @JsonIgnore
+    @Column(name = "cle_hachee", length = 72)
+    private String cleHachee;
+
+    /** Verrou optimiste : deux operations simultanees ne peuvent pas ecraser le solde. */
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @OneToMany(mappedBy = "eleveur", cascade = CascadeType.PERSIST)
     private List<Animal> animaux = new ArrayList<>();
@@ -146,7 +162,7 @@ public class Eleveur {
         exigerProprietaire(animal);
 
         String message = animal.allerEnBalade();
-        BigDecimal recette = animal.getEspece().getGainParBalade();
+        BigDecimal recette = animal.recetteDeLaBalade();
         if (recette.signum() == 0) {
             return new ResultatAction(TypeMouvement.PROMENADE, message, BigDecimal.ZERO);
         }

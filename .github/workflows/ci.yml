@@ -46,6 +46,10 @@ jobs:
         working-directory: front
         run: npm ci
 
+      - name: Auditer les dependances
+        working-directory: front
+        run: npm audit --audit-level=high
+
       - name: Construire le bundle
         working-directory: front
         run: npm run build

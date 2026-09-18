@@ -17,6 +17,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import jakarta.persistence.Version;
 import laFerme.exception.ActionImpossibleException;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -104,6 +105,11 @@ public abstract class Animal {
 
     @Column(name = "cree_le", nullable = false, updatable = false)
     private Instant creeLe;
+
+    /** Verrou optimiste : deux recoltes simultanees ne peuvent pas passer toutes les deux. */
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     protected Animal(String nom, String race, String couleur, String enclos) {
         this.nom = nom;
@@ -215,22 +221,25 @@ public abstract class Animal {
         return designation() + " a ete vendue.";
     }
 
-    public String nourrir() {
+    /**
+     * Methode gabarit : les regles communes sont ici, l'effet du repas est propre
+     * a chaque espece ({@link Cochon} en profite pour grossir).
+     */
+    public final String nourrir() {
         exigerDisponible("nourrir");
         if (getFaim() == 0) {
             throw new ActionImpossibleException("%s n'a pas faim pour le moment.".formatted(designation()));
         }
         derniereNourriture = Instant.now();
+        return effetDuRepas();
+    }
 
-        BigDecimal engraissement = getEspece().getGainParRepas();
-        if (engraissement.signum() > 0) {
-            prix = prix.add(engraissement);
-            return "%s a ete nourri et prend de la valeur (%s €).".formatted(designation(), prix.toPlainString());
-        }
+    /** Ce que change un repas, au-dela de la faim. Surcharge par les especes a engraisser. */
+    protected String effetDuRepas() {
         return designation() + " a ete nourrie.";
     }
 
-    public String soigner() {
+    public final String soigner() {
         exigerDisponible("soigner");
         if (sante >= 100) {
             throw new ActionImpossibleException("%s est deja en pleine forme.".formatted(designation()));
@@ -239,7 +248,7 @@ public abstract class Animal {
         return designation() + " a ete soignee.";
     }
 
-    public String allerEnBalade() {
+    public final String allerEnBalade() {
         exigerDisponible("promener");
         long attente = getSecondesAvantBalade();
         if (attente > 0) {
@@ -248,14 +257,19 @@ public abstract class Animal {
         }
         derniereBalade = Instant.now();
         sante = Math.min(100, sante + BONUS_BALADE);
+        return effetDeLaBalade();
+    }
+
+    /** Ce que donne une balade. Le {@link Cheval} en fait une promenade payante. */
+    protected String effetDeLaBalade() {
         return designation() + " part en balade.";
     }
 
     /**
-     * Recolte la production. Suppose que l'animal est en etat de produire, ce que
-     * verifient les regles ci-dessous.
+     * Recolte la production : les conditions sont verifiees ici, la formulation
+     * revient a l'espece via {@link #messageRecolte()}.
      */
-    public String recolter() {
+    public final String recolter() {
         exigerDisponible("recolter");
 
         if (!getEspece().estRecoltable()) {
@@ -279,7 +293,38 @@ public abstract class Animal {
         derniereRecolte = Instant.now();
         sante = Math.max(0, sante - USURE_PAR_RECOLTE);
 
-        return "%s a donne %d %s.".formatted(designation(), quantiteProduction, getEspece().getProduction().getUnite());
+        return messageRecolte();
+    }
+
+    // ---------------------------------------------------------------------
+    // Ce que chaque espece a de particulier
+    // ---------------------------------------------------------------------
+
+    /** Le cri de l'animal : chaque espece a le sien. */
+    public abstract String cri();
+
+    /**
+     * Comment l'espece annonce sa recolte : la vache donne, la poule pond, le
+     * mouton se fait tondre. Les especes qui ne se recoltent pas gardent le refus
+     * par defaut.
+     */
+    protected String messageRecolte() {
+        throw new ActionImpossibleException("%s ne se recolte pas.".formatted(designation()));
+    }
+
+    /** Valeur ajoutee a l'animal par un repas. Seul le cochon s'engraisse. */
+    public BigDecimal valeurAjouteeParRepas() {
+        return BigDecimal.ZERO;
+    }
+
+    /** Recette d'une promenade. Seul le cheval fait payer les siennes. */
+    public BigDecimal recetteDeLaBalade() {
+        return BigDecimal.ZERO;
+    }
+
+    /** Raccourci de formulation pour les sous-classes. */
+    protected String production() {
+        return "%d %s".formatted(quantiteProduction, getEspece().getProduction().getUnite());
     }
 
     public String demenager(String nouvelEnclos) {

@@ -20,4 +20,14 @@ public class Vache extends Animal {
     public Espece getEspece() {
         return Espece.VACHE;
     }
+
+    @Override
+    public String cri() {
+        return "Meuh !";
+    }
+
+    @Override
+    protected String messageRecolte() {
+        return "%s a donne %s.".formatted(designation(), production());
+    }
 }

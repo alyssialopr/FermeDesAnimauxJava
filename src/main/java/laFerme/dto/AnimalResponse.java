@@ -69,6 +69,9 @@ public record AnimalResponse(
         @Schema(description = "Secondes restantes avant la prochaine recolte", example = "0")
         long secondesAvantRecolte,
 
+        @Schema(description = "Le cri de l'espece", example = "Meuh !")
+        String cri,
+
         @Schema(description = "Date d'arrivee a la ferme", example = "2026-09-18T07:26:51.173Z")
         Instant creeLe
 ) {

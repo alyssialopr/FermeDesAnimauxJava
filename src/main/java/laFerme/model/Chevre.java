@@ -20,4 +20,14 @@ public class Chevre extends Animal {
     public Espece getEspece() {
         return Espece.CHEVRE;
     }
+
+    @Override
+    public String cri() {
+        return "Mêê !";
+    }
+
+    @Override
+    protected String messageRecolte() {
+        return "%s a donne %s.".formatted(designation(), production());
+    }
 }

@@ -76,6 +76,7 @@ public final class AnimalMapper {
                 animal.getSante(),
                 animal.peutEtreRecolte(),
                 animal.getSecondesAvantRecolte(),
+                animal.cri(),
                 animal.getCreeLe());
     }
 }

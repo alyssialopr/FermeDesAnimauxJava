@@ -20,4 +20,14 @@ public class Poule extends Animal {
     public Espece getEspece() {
         return Espece.POULE;
     }
+
+    @Override
+    public String cri() {
+        return "Cot cot codec !";
+    }
+
+    @Override
+    protected String messageRecolte() {
+        return "%s a pondu %s.".formatted(designation(), production());
+    }
 }

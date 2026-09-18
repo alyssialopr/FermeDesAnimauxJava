@@ -20,4 +20,14 @@ public class Canard extends Animal {
     public Espece getEspece() {
         return Espece.CANARD;
     }
+
+    @Override
+    public String cri() {
+        return "Coin coin !";
+    }
+
+    @Override
+    protected String messageRecolte() {
+        return "%s a pondu %s.".formatted(designation(), production());
+    }
 }

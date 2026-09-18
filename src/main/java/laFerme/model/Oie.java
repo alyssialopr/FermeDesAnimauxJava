@@ -20,4 +20,14 @@ public class Oie extends Animal {
     public Espece getEspece() {
         return Espece.OIE;
     }
+
+    @Override
+    public String cri() {
+        return "Couac !";
+    }
+
+    @Override
+    protected String messageRecolte() {
+        return "%s a fourni %s.".formatted(designation(), production());
+    }
 }

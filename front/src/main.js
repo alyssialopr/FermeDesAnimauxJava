@@ -8,7 +8,7 @@
 
 import * as THREE from 'three';
 import './ui/styles.css';
-import { api, ErreurFerme } from './api.js';
+import { api, cleDe, definirCle, ErreurFerme, jouerAvec, oublierCle } from './api.js';
 import { AnimalVisuel } from './scene/animaux.js';
 import {
   cadrerFerme,
@@ -115,7 +115,8 @@ function majMarche() {
 async function majCompte() {
   try {
     hud.majClassement(await api.classement(), etat.eleveurId);
-    hud.majMouvements(etat.eleveurId ? await api.mouvements(etat.eleveurId) : []);
+    const releveLisible = etat.eleveurId != null && cleDe(etat.eleveurId);
+    hud.majMouvements(releveLisible ? await api.mouvements(etat.eleveurId) : []);
   } catch {
     // Le classement et le releve sont du confort : leur echec ne casse pas la partie.
   }
@@ -225,9 +226,13 @@ function messageAvecMontant(resultat) {
   return montant === 0 ? resultat.message : `${resultat.message} ${eurosSigne(montant)}`;
 }
 
-async function lancerAction(action, animalIdForce = null) {
+async function lancerAction(action, animalIdForce = null, deuxiemeEssai = false) {
   const animalId = animalIdForce ?? etat.selection;
   if (etat.eleveurId == null || animalId == null) {
+    return;
+  }
+
+  if (!cleDe(etat.eleveurId) && !(await reclamerCle(etat.eleveurId))) {
     return;
   }
 
@@ -245,6 +250,14 @@ async function lancerAction(action, animalIdForce = null) {
     }
     await rafraichir();
   } catch (erreur) {
+    // Cle absente ou perimee : on la redemande une fois, puis on rejoue l'action.
+    if (!deuxiemeEssai && (erreur.statut === 401 || erreur.statut === 403)) {
+      oublierCle(etat.eleveurId);
+      if (await reclamerCle(etat.eleveurId)) {
+        await lancerAction(action, animalId, true);
+        return;
+      }
+    }
     signaler(erreur);
     await rafraichir();
   }
@@ -253,6 +266,10 @@ async function lancerAction(action, animalIdForce = null) {
 async function creerAnimal() {
   const saisie = await hud.demanderAnimal();
   if (!saisie) {
+    return;
+  }
+
+  if (!cleDe(etat.eleveurId) && !(await reclamerCle(etat.eleveurId))) {
     return;
   }
 
@@ -286,9 +303,12 @@ async function creerEleveur() {
   }
 
   try {
-    const eleveur = await api.creerEleveur(prenom);
+    // La reponse contient la cle d'acces : c'est la seule fois qu'elle est donnee.
+    const { eleveur, cle } = await api.creerEleveur(prenom);
+    definirCle(eleveur.id, cle);
+
     hud.toast(`${eleveur.prenom} rejoint la ferme avec ${eleveur.solde} €.`);
-    hud.journal(`${eleveur.prenom} rejoint la ferme.`);
+    hud.journal(`${eleveur.prenom} rejoint la ferme. Sa clé : ${cle}`);
     changerEleveur(eleveur.id);
     await rafraichir();
   } catch (erreur) {
@@ -296,8 +316,31 @@ async function creerEleveur() {
   }
 }
 
+/**
+ * Sans cle, aucune action n'est possible au nom de cet eleveur : on la demande.
+ * Elle reste dans ce navigateur, le serveur n'en garde qu'une empreinte.
+ */
+async function reclamerCle(eleveurId) {
+  const eleveur = etat.eleveurs.find((candidat) => candidat.id === eleveurId);
+  if (!eleveur) {
+    return false;
+  }
+
+  const cle = await hud.demanderCle(eleveur.prenom);
+  if (!cle) {
+    return false;
+  }
+
+  definirCle(eleveurId, cle);
+  jouerAvec(eleveurId);
+  return true;
+}
+
 async function demenager(enclos) {
   if (etat.selection == null) {
+    return;
+  }
+  if (!cleDe(etat.eleveurId) && !(await reclamerCle(etat.eleveurId))) {
     return;
   }
   try {
@@ -313,6 +356,7 @@ async function demenager(enclos) {
 
 function changerEleveur(id) {
   etat.eleveurId = id;
+  jouerAvec(id);
   if (id == null) {
     localStorage.removeItem(CLE_ELEVEUR);
   } else {
@@ -416,6 +460,7 @@ hud.surMarche((animalId, action) => {
 });
 
 async function demarrer() {
+  jouerAvec(etat.eleveurId);
   boucle();
 
   // L'API peut encore etre en train de demarrer derriere nginx : on insiste.

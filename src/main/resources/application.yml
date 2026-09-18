@@ -2,6 +2,17 @@ spring:
   application:
     name: ferme-des-animaux
 
+  autoconfigure:
+    exclude:
+      # L'API n'a pas d'utilisateur par defaut : l'authentification passe
+      # uniquement par la cle d'eleveur. Sans cette exclusion, Spring Boot
+      # creerait un compte "user" et afficherait son mot de passe au demarrage.
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+
+  servlet:
+    multipart:
+      enabled: false
+
   datasource:
     # Aucun identifiant en dur dans le depot : voir .env.example et docker-compose.yml.
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ferme}
@@ -27,22 +38,46 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  # L'API est derriere nginx : on lui fait confiance pour l'adresse d'origine.
+  forward-headers-strategy: framework
   error:
     # Les messages d'erreur exploitables sont produits par GestionnaireErreurs :
     # la page d'erreur par defaut ne divulgue ni message interne ni stacktrace.
     include-message: never
     include-stacktrace: never
+    include-binding-errors: never
+    whitelabel:
+      enabled: false
+  # Bornes anti-abus : une requete de la ferme tient largement dans ces limites.
+  max-http-request-header-size: 8KB
+  tomcat:
+    max-http-form-post-size: 64KB
+    max-swallow-size: 64KB
+    connection-timeout: 5s
+    threads:
+      max: 100
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # Strict minimum : de quoi repondre a docker compose, rien de plus.
+        # /actuator n'est d'ailleurs pas relaye par nginx.
+        include: health
   endpoint:
     health:
       probes:
         enabled: true
-      show-details: when-authorized
+      show-details: never
+      show-components: never
+  info:
+    env:
+      enabled: false
+    java:
+      enabled: false
+    os:
+      enabled: false
 
 springdoc:
   api-docs:

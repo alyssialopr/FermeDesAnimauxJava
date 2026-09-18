@@ -10,6 +10,7 @@ import laFerme.services.AnimalService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -31,6 +32,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// Ces tests verifient le contrat HTTP du controleur ; l'authentification, elle,
+// est couverte de bout en bout par FermeApplicationTests sur la vraie chaine.
+@AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(AnimalController.class)
 class AnimalControllerTest {
 
@@ -45,7 +49,7 @@ class AnimalControllerTest {
                 EtatAnimal.LIBRE, 1L, "alyssia",
                 new BigDecimal("230.00"), new BigDecimal("207.00"),
                 Production.LAIT, "litres de lait", 18, new BigDecimal("27.00"),
-                12, 100, true, 0L, Instant.parse("2026-01-01T10:00:00Z"));
+                12, 100, true, 0L, "Meuh !", Instant.parse("2026-01-01T10:00:00Z"));
     }
 
     @Test

@@ -3,6 +3,7 @@ package laFerme.services;
 import laFerme.dto.ActionResponse;
 import laFerme.dto.ClassementResponse;
 import laFerme.dto.CreerEleveurRequest;
+import laFerme.dto.EleveurCreeResponse;
 import laFerme.dto.EleveurResponse;
 import laFerme.dto.MouvementResponse;
 import laFerme.exception.ActionImpossibleException;
@@ -20,12 +21,14 @@ import laFerme.utils.MouvementMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Limit;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.IntStream;
 
@@ -45,6 +48,7 @@ public class EleveurService {
     private final EleveurRepository eleveurRepository;
     private final AnimalRepository animalRepository;
     private final MouvementRepository mouvementRepository;
+    private final PasswordEncoder encodeurDeCle;
 
     public List<EleveurResponse> lister() {
         return eleveurRepository.findAll().stream()
@@ -83,15 +87,24 @@ public class EleveurService {
                 .toList();
     }
 
+    /**
+     * Cree l'eleveur et lui remet une cle d'acces. La cle est tiree au hasard, seule
+     * son empreinte est conservee : c'est la seule fois qu'elle transite en clair.
+     */
     @Transactional
-    public EleveurResponse creer(CreerEleveurRequest requete) {
+    public EleveurCreeResponse creer(CreerEleveurRequest requete) {
         String prenom = requete.prenom().trim();
         if (eleveurRepository.existsByPrenomIgnoreCase(prenom)) {
             throw new ActionImpossibleException("Un eleveur nomme %s existe deja.".formatted(prenom));
         }
-        Eleveur eleveur = eleveurRepository.save(new Eleveur(prenom));
+
+        String cle = UUID.randomUUID().toString();
+        Eleveur eleveur = new Eleveur(prenom);
+        eleveur.setCleHachee(encodeurDeCle.encode(cle));
+        eleveurRepository.save(eleveur);
+
         log.info("Nouvel eleveur : {}", eleveur);
-        return EleveurMapper.versReponse(eleveur);
+        return new EleveurCreeResponse(EleveurMapper.versReponse(eleveur), cle);
     }
 
     @Transactional

@@ -17,6 +17,7 @@ import laFerme.utils.AnimalMapper;
 import laFerme.utils.AnimalSpecifications;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class AnimalService {
     private final AnimalRepository animalRepository;
     private final EleveurRepository eleveurRepository;
     private final MouvementRepository mouvementRepository;
+    private final ServiceSecurite securite;
 
     public List<AnimalResponse> lister(Espece espece, EtatAnimal etat, Long eleveurId, String enclos) {
         Specification<Animal> criteres = Specification.allOf(
@@ -74,6 +76,7 @@ public class AnimalService {
     @Transactional
     public AnimalResponse changerEnclos(Long id, String enclos) {
         Animal animal = exigerAnimal(id);
+        exigerDroitSurAnimal(animal);
         animal.demenager(enclos);
         return AnimalMapper.versReponse(animal);
     }
@@ -90,6 +93,7 @@ public class AnimalService {
         }
 
         Animal animal = exigerAnimal(id);
+        exigerDroitSurAnimal(animal);
         if (!animal.getEtat().estDisponible()) {
             throw new ActionImpossibleException(
                     "%s est deja %s.".formatted(animal.designation(), animal.getEtat()));
@@ -103,6 +107,7 @@ public class AnimalService {
     @Transactional
     public void supprimer(Long id) {
         Animal animal = exigerAnimal(id);
+        exigerDroitSurAnimal(animal);
         Eleveur eleveur = animal.getEleveur();
         if (eleveur != null) {
             eleveur.getAnimaux().remove(animal);
@@ -110,6 +115,21 @@ public class AnimalService {
         }
         animalRepository.delete(animal);
         log.info("Animal {} retire de la ferme", id);
+    }
+
+    /**
+     * Un animal qui appartient a quelqu'un ne peut etre modifie que par son
+     * proprietaire ; un animal du marche, par n'importe quel eleveur identifie.
+     */
+    private void exigerDroitSurAnimal(Animal animal) {
+        Eleveur proprietaire = animal.getEleveur();
+        boolean autorise = proprietaire == null
+                ? securite.estConnecte()
+                : securite.estEleveur(proprietaire.getId());
+
+        if (!autorise) {
+            throw new AccessDeniedException("Cet animal ne vous appartient pas");
+        }
     }
 
     private Animal exigerAnimal(Long id) {

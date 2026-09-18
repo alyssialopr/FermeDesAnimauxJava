@@ -2,6 +2,7 @@ package laFerme.controller;
 
 import laFerme.dto.ActionResponse;
 import laFerme.dto.AnimalResponse;
+import laFerme.dto.EleveurCreeResponse;
 import laFerme.dto.EleveurResponse;
 import laFerme.exception.AnimalNonPossedeException;
 import laFerme.model.Espece;
@@ -11,6 +12,7 @@ import laFerme.services.EleveurService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -23,9 +25,13 @@ import java.util.List;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+// Ces tests verifient le contrat HTTP du controleur ; l'authentification, elle,
+// est couverte de bout en bout par FermeApplicationTests sur la vraie chaine.
+@AutoConfigureMockMvc(addFilters = false)
 @WebMvcTest(EleveurController.class)
 class EleveurControllerTest {
 
@@ -40,7 +46,7 @@ class EleveurControllerTest {
                 EtatAnimal.LIBRE, 1L, "alyssia",
                 new BigDecimal("230.00"), new BigDecimal("207.00"),
                 Production.LAIT, "litres de lait", 18, new BigDecimal("27.00"),
-                12, 100, true, 0L, Instant.parse("2026-01-01T10:00:00Z"));
+                12, 100, true, 0L, "Meuh !", Instant.parse("2026-01-01T10:00:00Z"));
     }
 
     @Test
@@ -80,6 +86,23 @@ class EleveurControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Animal non possede"))
                 .andExpect(jsonPath("$.detail").value("Cet animal ne vous appartient pas"));
+    }
+
+    @Test
+    @DisplayName("creer un eleveur renvoie sa cle d'acces, une seule fois")
+    void creationRenvoieLaCle() throws Exception {
+        given(eleveurService.creer(org.mockito.ArgumentMatchers.any())).willReturn(new EleveurCreeResponse(
+                new EleveurResponse(3L, "camille", new BigDecimal("300.00"), new BigDecimal("300.00"), 0, List.of()),
+                "f47ac10b-58cc-4372-a567-0e02b2c3d479"));
+
+        mockMvc.perform(post("/api/eleveurs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"prenom":"camille"}"""))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/eleveurs/3"))
+                .andExpect(jsonPath("$.eleveur.prenom").value("camille"))
+                .andExpect(jsonPath("$.cle").value("f47ac10b-58cc-4372-a567-0e02b2c3d479"));
     }
 
     @Test

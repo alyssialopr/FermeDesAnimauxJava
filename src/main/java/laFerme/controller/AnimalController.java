@@ -19,6 +19,7 @@ import laFerme.model.EtatAnimal;
 import laFerme.services.AnimalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -80,6 +81,7 @@ public class AnimalController {
     private final AnimalService animalService;
 
     @PostMapping
+    @PreAuthorize("#requete.eleveurId() == null ? @securite.estConnecte() : @securite.estEleveur(#requete.eleveurId())")
     @Operation(summary = "Faire entrer un animal a la ferme",
             description = """
                     Cree une vache ou une poule. Les champs specifiques a l'espece \

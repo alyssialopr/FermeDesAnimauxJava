@@ -184,7 +184,7 @@ class EleveurTest {
             // 5 oeufs a 0.60 €
             assertThat(alyssia.getSolde()).isEqualByComparingTo(avant.add(new BigDecimal("3.00")));
             assertThat(resultat.type()).isEqualTo(TypeMouvement.RECOLTE);
-            assertThat(resultat.message()).contains("a donne 5 oeufs").contains("Vendu 3.00 €");
+            assertThat(resultat.message()).contains("a pondu 5 oeufs").contains("Vendu 3.00 €");
         }
 
         @Test

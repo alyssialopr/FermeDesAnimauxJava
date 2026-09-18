@@ -168,6 +168,21 @@
       </form>
     </dialog>
 
+    <dialog id="modale-cle">
+      <form method="dialog" id="formulaire-cle">
+        <h2>Clé de l'éleveur</h2>
+        <p class="resume" id="cle-explication">
+          Les actions de cet éleveur sont protégées par une clé. Colle-la pour jouer avec lui.
+        </p>
+        <label class="champ">Clé<input name="cle" required maxlength="80" placeholder="demo-alyssia" autocomplete="off" /></label>
+        <div class="modale__actions">
+          <!-- formnovalidate : sans lui, les champs requis bloquent la fermeture -->
+          <button value="annuler" formnovalidate class="bouton bouton--discret">Annuler</button>
+          <button value="valider" class="bouton">Valider</button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="modale-aide">
       <div class="aide">
         <h2>Comment jouer</h2>
@@ -181,6 +196,9 @@
           <li>Le <b>cheval</b> ne se récolte pas non plus : ce sont ses promenades qui rapportent.</li>
           <li>Revendre rapporte 90 % de la valeur de l'animal.</li>
           <li>Tu ne peux t'occuper que de <b>tes</b> animaux.</li>
+          <li>Chaque éleveur a une <b>clé</b> : elle t'est donnée une seule fois à la création
+            et le navigateur la retient. Les éleveurs de démonstration utilisent
+            <code>demo-alyssia</code> et <code>demo-killian</code>.</li>
         </ul>
         <p class="aide__note">
           Tout passe par l'API Spring Boot et la base PostgreSQL : ton argent, tes animaux

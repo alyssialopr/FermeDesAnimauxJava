@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +29,16 @@ import java.util.List;
 @Slf4j
 public class DonneesDemo implements ApplicationRunner {
 
+    /**
+     * Cles des eleveurs de demonstration. Elles ne sont creees que par ce jeu de
+     * donnees, desactive des que {@code ferme.donnees-demo=false} : aucune cle
+     * connue d'avance n'existe en dehors de la demo.
+     */
+    private static final String CLE_DEMO = "demo-";
+
     private final EleveurRepository eleveurRepository;
     private final AnimalRepository animalRepository;
+    private final PasswordEncoder encodeurDeCle;
 
     @Override
     @Transactional
@@ -39,8 +48,8 @@ public class DonneesDemo implements ApplicationRunner {
             return;
         }
 
-        var alyssia = new Eleveur("alyssia");
-        var killian = new Eleveur("killian");
+        var alyssia = eleveurDeDemo("alyssia");
+        var killian = eleveurDeDemo("killian");
 
         // Troupeaux d'origine : ces animaux sont deja a eux, rien n'est debite.
         installer(alyssia, Espece.VACHE, "emily", "Highland", "marron", "1");
@@ -64,6 +73,15 @@ public class DonneesDemo implements ApplicationRunner {
 
         log.info("Jeu de demonstration installe : {} eleveurs, {} animaux dont {} au marche",
                 eleveurRepository.count(), animalRepository.count(), 9);
+        log.warn("DEMONSTRATION : les cles des eleveurs sont '{}alyssia' et '{}killian'. "
+                + "Mettez ferme.donnees-demo=false hors demonstration.", CLE_DEMO, CLE_DEMO);
+    }
+
+    /** Eleveur de demo, avec une cle connue pour pouvoir jouer tout de suite. */
+    private Eleveur eleveurDeDemo(String prenom) {
+        Eleveur eleveur = new Eleveur(prenom);
+        eleveur.setCleHachee(encodeurDeCle.encode(CLE_DEMO + prenom));
+        return eleveur;
     }
 
     private void installer(Eleveur eleveur, Espece espece, String nom, String race, String couleur, String enclos) {
