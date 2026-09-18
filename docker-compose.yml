@@ -48,6 +48,9 @@ services:
       - api
     ports:
       - "${WEB_PORT:-3000}:80"
+    volumes:
+      # La doc hors-ligne reste lisible sans serveur, et aussi depuis le jeu.
+      - ./docs:/usr/share/nginx/doc:ro
 
 volumes:
   ferme-db:

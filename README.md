@@ -86,6 +86,7 @@ Deux façons de la consulter :
 | | |
 |---|---|
 | **Sans rien lancer** | ouvrir **`docs/api.html`** dans un navigateur — un simple double-clic |
+| Depuis le jeu | http://localhost:3000/doc (la même page, servie par nginx) |
 | Avec la stack | http://localhost:8080/swagger-ui.html (le bouton *Try it out* y fonctionne) |
 
 `docs/api.html` est un fichier autonome : Swagger UI et le contrat OpenAPI sont

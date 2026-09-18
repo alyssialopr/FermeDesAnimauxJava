@@ -52,8 +52,12 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
     display-request-duration: true
-    doc-expansion: none
+    # Les operations sont visibles d'entree : replier les tags donnait une page
+    # apparemment vide.
+    doc-expansion: list
+    display-operation-id: false
     persist-authorization: true
+    filter: true
   default-produces-media-type: application/json
   writer-with-order-by-keys: true
 
