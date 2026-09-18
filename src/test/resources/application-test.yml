@@ -1,0 +1,15 @@
+# Identifiants factices : la connexion reelle est fournie par le conteneur
+# PostgreSQL via @ServiceConnection. Ils servent uniquement a resoudre les
+# placeholders de application.yml.
+spring:
+  datasource:
+    username: test
+    password: test
+
+ferme:
+  donnees-demo: false
+
+logging:
+  level:
+    laFerme: WARN
+    org.testcontainers: WARN
