@@ -1,22 +1,24 @@
-package laFerme;
+package laFerme.model;
 
-public class Poule implements Animal{
+public class Vache implements Animal {
     private static int CPT = 1;
 
     int id;
     String nom;
     String race;
     String couleur;
+    EtatAnimal etat = EtatAnimal.LIBRE; // par defaut
     String enclos;
-    EtatAnimal etat = EtatAnimal.LIBRE;
 
-    public Poule(String nom, String race, String couleur, String enclos) {
+    public Vache(String nom, String race, String couleur, String enclos){
         this.id = CPT++;
         this.nom = nom;
         this.race = race;
         this.couleur = couleur;
         this.enclos = enclos;
+        this.etat = EtatAnimal.LIBRE;
     }
+
     public void acheter(){
         setEtat(EtatAnimal.LIBRE);
     }
@@ -26,15 +28,15 @@ public class Poule implements Animal{
     }
 
     public void nourrir(){
-        System.out.println("La poule " + nom + " a été nourrie.");
+        System.out.println(nom + " a été nourrie.");
     }
 
     public void soigner(){
-        System.out.println("La poule " +nom + " a été soignée.");
+        System.out.println(nom + " a été soignée.");
     }
 
     public void allerEnBalade(){
-        System.out.println("La poule " +nom + " part en balade.");
+        System.out.println(nom + " part en balade.");
     }
 
     public EtatAnimal getEtat() {
@@ -48,5 +50,4 @@ public class Poule implements Animal{
     public void setEnclos(String enclos) {
         this.enclos = enclos;
     }
-
 }

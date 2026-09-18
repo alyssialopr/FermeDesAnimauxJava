@@ -1,4 +1,4 @@
-package laFerme;
+package laFerme.model;
 
 public interface Animal {
 
